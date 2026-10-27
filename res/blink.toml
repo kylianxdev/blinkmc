@@ -1,0 +1,99 @@
+# Blink: your Minecraft server sleeps when nobody plays and wakes up in 0.1 seconds.
+# https://github.com/kylianxdev/blinkmc
+#
+# install.sh writes this file for your server. Everything here is optional unless noted.
+
+[public]
+# Where players connect. Blink owns this port; your server moves to [server] address.
+address = "0.0.0.0:25565"
+
+# What the server list shows while the server sleeps. install.sh reads both from your server jar.
+version = "Paper 26.3"
+protocol = 777
+
+[server]
+# The real server. Blink rewrites server-ip and server-port in server.properties to this.
+address = "127.0.0.1:25566"
+
+# Server folder, relative to this file.
+directory = "."
+
+# How to start the server. "blink-paper" is Blink's built in Paper launcher: it starts Paper
+# directly with Java's AOT cache (about 4 s instead of 13 s). Settings as KEY=VALUE:
+#   HEAP (max heap, 8G), HEAP_MIN (256M), JAR (paper.jar), JAVA (path to Java 26 or newer)
+# Any other command works too, for example "java -Xmx4G -jar server.jar --nogui".
+command = "blink-paper HEAP=8G JAR=paper.jar"
+
+# Freeze (pause) the server instead of stopping it: it wakes up in 0.1 to 0.4 s.
+freeze_process = true
+
+# Start the server as soon as Blink starts (it freezes after sleep_after), so even the first join
+# after a reboot is a thaw instead of a cold start.
+wake_on_start = true
+
+# Save the world (save-all) and wait for it before every freeze. A reboot of the machine while the
+# server is frozen then loses nothing.
+save_before_freeze = true
+
+# Optional command to run right before a freeze, after the save, in the server folder.
+#before_freeze = "./my-script.sh"
+
+# Only players on whitelist.json (and ops) can wake the server, when the whitelist is on in
+# server.properties. With the whitelist off, anyone can.
+wake_whitelist = true
+
+# Without a whitelist: only players who joined before (usercache.json) can wake the server.
+# Keeps scanner bots from waking it, but new players can't wake it either. A bot that does wake
+# the server only keeps it awake until the next freeze, so this is off by default.
+wake_known_players = false
+
+# Pass on the players' real IP addresses to the server (PROXY protocol). The blink-paper launcher
+# turns it on in Paper too (proxies.proxy-protocol in config/paper-global.yml). Without it the
+# server sees every player as 127.0.0.1, so IP bans don't work.
+send_proxy_v2 = true
+
+# Seconds to wait for the server to start or stop before it is killed.
+start_timeout = 300
+stop_timeout = 150
+
+[time]
+# Save and freeze this many seconds after the last player left.
+sleep_after = 30
+
+# Stay awake at least this many seconds after a wake up.
+minimum_online_time = 30
+
+# Stop a server that was frozen this long completely (0: never). A stopped server uses no memory
+# at all; the next join is a cold start (about 4 s) instead of a thaw.
+stop_after = 86400
+
+[motd]
+# What the server list says while the server sleeps, wakes up or goes to sleep.
+sleeping = "§a§lMy server\n§7💤 sleeping §8• §ajoin to wake it up"
+starting = "§a§lMy server\n§e⌛ waking up..."
+stopping = "§a§lMy server\n§7💤 going to sleep..."
+
+# While the server is awake, show its own MOTD.
+from_server = true
+
+[join]
+# hold: the player waits on "Joining world" until the server is up, then joins.
+# kick: the player gets a message to try again (only if hold times out).
+methods = ["hold", "kick"]
+
+[join.hold]
+timeout = 40
+
+[join.kick]
+starting = "§aThe server is waking up!§r\n\n§7Try again in §e10 seconds§7."
+stopping = "§7The server is going to sleep...§r\n\n§7Try again in §e10 seconds§7."
+
+[advanced]
+rewrite_server_properties = true
+
+# Threads for passing on the players' traffic. One thread passes about 1 GB/s, plenty for a normal
+# server; give a server with hundreds of players 2 to 4.
+threads = 1
+
+[config]
+version = "0.2.11"

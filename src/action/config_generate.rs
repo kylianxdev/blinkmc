@@ -28,7 +28,7 @@ pub fn invoke(matches: &ArgMatches) {
     }
 
     // Generate file
-    if let Err(err) = fs::write(&path, include_bytes!("../../res/lazymc.toml")) {
+    if let Err(err) = fs::write(&path, include_bytes!("../../res/blink.toml")) {
         quit_error(
             anyhow!(err).context("Failed to generate config file"),
             ErrorHintsBuilder::default().build().unwrap(),
