@@ -166,7 +166,73 @@ def blocks():
     save(img.crop((0, 0, 16, 16)), "grass.png", 16)
 
 
+def tree():
+    """A big oak on a small grass island, for the "greener" part of the page."""
+    W, H = 48, 56
+    rnd = random.Random(21)
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    px = img.load()
+    def put(x, y, c):
+        if 0 <= x < W and 0 <= y < H:
+            px[x, y] = c + (255,)
+    # leaves: overlapping blobs, lit from the top left, darker at the bottom
+    greens = [(26, 74, 30), (38, 98, 40), (52, 124, 50), (74, 152, 62), (104, 182, 78)]
+    blobs = [(24, 14, 13), (14, 20, 9), (34, 20, 9), (19, 9, 7), (30, 8, 7), (24, 24, 10), (9, 25, 6), (39, 26, 6)]
+    for y in range(H):
+        for x in range(W):
+            inside = [b for b in blobs if (x - b[0]) ** 2 + ((y - b[1]) * 1.15) ** 2 <= b[2] ** 2]
+            if not inside:
+                continue
+            # light: higher and more to the left is brighter, the bottom edge is in shadow
+            b = min(inside, key=lambda b: (x - b[0]) ** 2 + (y - b[1]) ** 2)
+            light = ((b[0] - x) * 0.6 + (b[1] - y)) / b[2]
+            shade = 2 + round(light * 1.6) + rnd.choice((-1, 0, 0, 0, 1))
+            if y > 26:
+                shade -= 1
+            put(x, y, greens[max(0, min(4, shade))])
+    # a few apples
+    for x, y in [(17, 15), (31, 12), (26, 22), (12, 24), (37, 22)]:
+        put(x, y, (200, 44, 40)); put(x, y - 1, (90, 60, 30))
+    # trunk with bark, and two branches into the leaves
+    bark = [(70, 48, 30), (92, 64, 40), (112, 80, 50)]
+    for y in range(26, 46):
+        for x in range(21, 27):
+            c = bark[1]
+            if x == 21 or (x + y * 3) % 7 == 0:
+                c = bark[0]
+            elif x == 25 and y % 4:
+                c = bark[2]
+            put(x, y, c)
+    for i in range(6):
+        put(20 - i, 30 - i, bark[0]); put(27 + i, 31 - i, bark[0]); put(27 + i, 30 - i, bark[1])
+    # roots
+    for x, y in [(19, 45), (20, 45), (27, 45), (28, 45)]:
+        put(x, y, bark[0])
+    # the island: grass on top, dirt below, getting smaller towards the bottom
+    for y in range(46, H):
+        d = y - 46
+        half = 21 - d * 2
+        for x in range(24 - half, 24 + half):
+            if d == 0:
+                c = noise(rnd, (86, 160, 60), 1)
+            elif d == 1 and rnd.random() < 0.5:
+                c = noise(rnd, (70, 136, 50), 1)
+            elif d < 7:
+                c = noise(rnd, (134, 96, 62), 1)
+            else:
+                c = noise(rnd, (110, 110, 116), 1)
+            put(x, y, c)
+    # grass tufts and flowers on the island
+    for x in (6, 9, 15, 31, 36, 41):
+        put(x, 45, (96, 170, 64))
+    for x, c in [(8, (240, 214, 60)), (13, (220, 70, 70)), (34, (240, 214, 60)), (39, (170, 120, 230))]:
+        put(x, 44, c); put(x, 45, (60, 120, 44))
+    img.save(os.path.join(OUT, "tree.png"), optimize=True)
+    print(f"tree.png: {W}x{H}, {os.path.getsize(os.path.join(OUT, 'tree.png'))} bytes")
+
+
 if __name__ == "__main__":
     landscape()
     logo()
     blocks()
+    tree()
