@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blink: a Minecraft server that wakes up in 0.1 seconds</title>
+<meta name="description" content="Blink makes your Minecraft Paper server sleep when nobody plays and wake up in 0.1 seconds when someone joins. It frees your RAM, keeps the server list working and needs no mods.">
+<meta name="keywords" content="minecraft server sleep, auto start minecraft server on join, lazymc, paper, fast startup, minecraft server idle, save ram minecraft server, java aot cache">
+<meta property="og:title" content="Blink: a Minecraft server that wakes up in 0.1 seconds">
+<meta property="og:description" content="Sleeps when nobody plays, wakes up in 0.1 s when someone joins. Stock Paper, no mods.">
+<meta property="og:image" content="https://kylianxdev.github.io/blinkmc/assets/social.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0b1026">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b1026; --bg2: #11183a; --card: #151d45; --line: #26306a;
+  --text: #e8ecff; --muted: #9aa5d6; --green: #36c46b; --green2: #5ee08f;
+  --gold: #f5c542; --blue: #6c8cff; --red: #ff6b6b;
+  --pixel: "Press Start 2P", monospace; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: var(--green2); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+code, pre { font-family: var(--mono); }
+code { background: #0e1533; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: .88em; }
+
+/* night sky */
+.sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.star { position: absolute; width: 3px; height: 3px; background: #fff; opacity: .6; animation: tw 4s infinite steps(2); }
+@keyframes tw { 50% { opacity: .15; } }
+
+header.hero { position: relative; padding: 28px 0 90px; background: radial-gradient(1200px 500px at 50% -10%, #23307a 0%, transparent 70%), var(--bg); }
+nav { display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 2; }
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text); font-family: var(--pixel); font-size: 15px; }
+.brand img { width: 40px; height: 25px; image-rendering: pixelated; }
+nav .links a { color: var(--muted); text-decoration: none; margin-left: 22px; font-weight: 500; font-size: 15px; }
+nav .links a:hover { color: var(--text); }
+.hero-inner { position: relative; z-index: 2; text-align: center; margin-top: 70px; }
+.eye { width: 176px; height: 110px; image-rendering: pixelated; animation: blink 5s infinite; transform-origin: 50% 50%; filter: drop-shadow(0 0 30px rgba(54,196,107,.35)); }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.08); } }
+h1 { font-family: var(--pixel); font-size: clamp(26px, 5vw, 46px); line-height: 1.35; margin: 34px 0 18px; text-shadow: 4px 4px 0 #000; }
+h1 .g { color: var(--green2); }
+.lead { font-size: clamp(17px, 2.2vw, 21px); color: var(--muted); max-width: 680px; margin: 0 auto 34px; }
+.cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn { font-family: var(--pixel); font-size: 12px; text-decoration: none; padding: 16px 22px; border: 3px solid #000; box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), inset 4px 4px 0 rgba(255,255,255,.25), 4px 4px 0 #000; color: #0b1026; background: var(--green); transition: transform .08s; }
+.btn:hover { transform: translate(-2px, -2px); }
+.btn.alt { background: #c6c6c6; }
+
+/* stats */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: -54px auto 0; position: relative; z-index: 3; }
+.stat { background: var(--card); border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 22px 18px; text-align: center; }
+.stat b { display: block; font-family: var(--pixel); font-size: 24px; color: var(--green2); margin-bottom: 10px; }
+.stat span { color: var(--muted); font-size: 14px; line-height: 1.4; display: block; }
+
+section { padding: 84px 0 0; }
+h2 { font-family: var(--pixel); font-size: clamp(18px, 3vw, 24px); line-height: 1.5; margin: 0 0 14px; }
+.kicker { color: var(--gold); font-family: var(--pixel); font-size: 11px; letter-spacing: 1px; margin-bottom: 14px; }
+.sub { color: var(--muted); max-width: 720px; margin: 0 0 34px; }
+
+/* states */
+.states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.state { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 24px; position: relative; }
+.state .tag { font-family: var(--pixel); font-size: 10px; padding: 6px 8px; display: inline-block; margin-bottom: 14px; color: #0b1026; }
+.state h3 { margin: 0 0 8px; font-size: 20px; }
+.state p { color: var(--muted); margin: 0 0 14px; font-size: 15.5px; }
+.state .num { font-family: var(--mono); font-size: 14px; color: var(--text); border-top: 1px dashed var(--line); padding-top: 12px; }
+.t-awake { background: var(--green); } .t-frozen { background: var(--blue); } .t-cold { background: var(--gold); }
+
+/* chart */
+.chart { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 26px; }
+.bar-row { display: grid; grid-template-columns: 240px 1fr 70px; align-items: center; gap: 14px; margin: 12px 0; }
+.bar-row .lbl { font-size: 14.5px; color: var(--muted); }
+.track { height: 22px; background: #0e1533; border-radius: 4px; overflow: hidden; }
+.fill { height: 100%; background: repeating-linear-gradient(90deg, var(--c) 0 14px, color-mix(in srgb, var(--c) 80%, #000) 14px 16px); width: 0; transition: width 1.2s cubic-bezier(.2,.7,.2,1); }
+.bar-row .v { font-family: var(--mono); font-weight: 600; text-align: right; }
+.note { color: var(--muted); font-size: 13.5px; margin-top: 16px; }
+
+/* steps */
+.steps { counter-reset: s; display: grid; gap: 16px; }
+.step { display: grid; grid-template-columns: 56px 1fr; gap: 18px; background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.step::before { counter-increment: s; content: counter(s); font-family: var(--pixel); font-size: 18px; width: 56px; height: 56px; display: grid; place-items: center; background: var(--card); border: 3px solid #000; box-shadow: 3px 3px 0 #000; color: var(--gold); }
+.step h3 { margin: 4px 0 6px; font-size: 18.5px; }
+.step p { margin: 0; color: var(--muted); font-size: 15.5px; }
+pre { background: #070b1c; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 14px; line-height: 1.6; margin: 12px 0 0; color: #cfd6ff; }
+pre .c { color: #6b76a8; }
+
+/* faq */
+details { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; }
+summary { cursor: pointer; font-weight: 700; list-style: none; }
+summary::before { content: "+"; font-family: var(--pixel); font-size: 12px; color: var(--green2); margin-right: 12px; }
+details[open] summary::before { content: "-"; }
+details p { color: var(--muted); margin: 12px 0 2px; font-size: 15.5px; }
+
+footer { margin-top: 96px; padding: 40px 0 50px; border-top: 4px solid #000; background: #070b1c; color: var(--muted); font-size: 14.5px; }
+footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.grass { height: 18px; background: repeating-linear-gradient(90deg, #5aa83a 0 16px, #4c9431 16px 32px); border-top: 4px solid #000; }
+.dirt { height: 28px; background: repeating-linear-gradient(90deg, #79553a 0 16px, #6b4a32 16px 32px); }
+
+@media (max-width: 860px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .states { grid-template-columns: 1fr; }
+  .bar-row { grid-template-columns: 1fr 64px; }
+  .bar-row .track { grid-column: 1 / -1; grid-row: 2; }
+  nav .links a:not(.gh) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .eye, .star { animation: none; } .fill { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="sky" id="sky"></div>
+  <div class="wrap">
+    <nav>
+      <a class="brand" href="#"><img src="assets/logo.svg" alt="">Blink</a>
+      <div class="links">
+        <a href="#how">How it works</a>
+        <a href="#numbers">Numbers</a>
+        <a href="#install">Install</a>
+        <a class="gh" href="https://github.com/kylianxdev/blinkmc">GitHub</a>
+      </div>
+    </nav>
+    <div class="hero-inner">
+      <img class="eye" src="assets/logo.svg" alt="Blink logo, a pixel eye">
+      <h1>Your server sleeps.<br><span class="g">It wakes up in 0.1 s.</span></h1>
+      <p class="lead">Blink makes a Minecraft Paper server go to sleep when nobody plays and gives your RAM back. When a friend joins, it is awake again in a tenth of a second. The server list keeps showing your MOTD the whole time.</p>
+      <div class="cta">
+        <a class="btn" href="#install">Get started</a>
+        <a class="btn alt" href="https://github.com/kylianxdev/blinkmc#readme">Read the write-up</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><b>0.1 s</b><span>until a sleeping server takes the join</span></div>
+    <div class="stat"><b>4.4 s</b><span>cold start of Paper, down from 11.5 s</span></div>
+    <div class="stat"><b>-71%</b><span>RAM of the sleeping server, the rest is free for your box</span></div>
+    <div class="stat"><b>0</b><span>mods, forks of Paper or client changes</span></div>
+  </div>
+
+  <section id="how">
+    <div class="kicker">HOW IT WORKS</div>
+    <h2>Three states, one port</h2>
+    <p class="sub">A small proxy (lazymc) owns the public port. Players never notice it: the server list, the MOTD and the icon always answer, and a join is simply let through as soon as the server is there.</p>
+    <div class="states">
+      <div class="state">
+        <span class="tag t-awake">AWAKE</span>
+        <h3>Playing</h3>
+        <p>A normal Paper server. lazymc only relays the connection. After 30 minutes without players it goes to sleep.</p>
+        <div class="num">same TPS, same plugins</div>
+      </div>
+      <div class="state">
+        <span class="tag t-frozen">FROZEN</span>
+        <h3>Asleep</h3>
+        <p>The JVM is paused, not stopped. Linux squeezes its memory into compressed RAM (zswap) and the coldest part to disk. On a join it simply continues.</p>
+        <div class="num">wake up: 0.1 s</div>
+      </div>
+      <div class="state">
+        <span class="tag t-cold">COLD</span>
+        <h3>Off</h3>
+        <p>After a reboot or an update the server starts from scratch. Paper starts directly with Java's AOT cache, so even that only takes a few seconds.</p>
+        <div class="num">cold start: 4.4 s</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="numbers">
+    <div class="kicker">THE NUMBERS</div>
+    <h2>From 13 seconds to 0.1</h2>
+    <p class="sub">Measured on a 6 core VPS with Paper 26.3, an 838 MB world, BlueMap and spark. Time from launch (or from the join) until the player is on the real server.</p>
+    <div class="chart" id="chart">
+      <div class="bar-row"><span class="lbl">Stock Paper (paperclip, Java 25)</span><div class="track"><div class="fill" style="--c:#ff6b6b" data-w="13.2"></div></div><span class="v">13.2 s</span></div>
+      <div class="bar-row"><span class="lbl">Direct start, Java 25 AOT cache</span><div class="track"><div class="fill" style="--c:#f5a742" data-w="7.8"></div></div><span class="v">7.8 s</span></div>
+      <div class="bar-row"><span class="lbl">Java 26, full AOT cache</span><div class="track"><div class="fill" style="--c:#f5c542" data-w="5.0"></div></div><span class="v">5.0 s</span></div>
+      <div class="bar-row"><span class="lbl">Wake from frozen</span><div class="track"><div class="fill" style="--c:#36c46b" data-w="0.1"></div></div><span class="v">0.1 s</span></div>
+      <p class="note">The cold start path is still there for reboots and updates. Paper itself reports a median of 4.35 s over 25 real cold starts.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">WHAT MADE IT FAST</div>
+    <h2>Four tricks</h2>
+    <div class="steps">
+      <div class="step"><div><h3>Freeze instead of stop</h3><p>A paused JVM keeps all its state, so waking it up is instant. Blink pushes the paused server's memory into zswap and swap, so a sleeping server costs a fraction of its RAM. Paper's watchdog is told not to panic about the time it was asleep.</p></div></div>
+      <div class="step"><div><h3>Start Paper without paperclip</h3><p>Paper's launcher loads the server in its own class loader, which Java's AOT cache cannot store. Blink reads the class path from <code>paper.jar</code> and starts <code>org.bukkit.craftbukkit.Main</code> directly.</p></div></div>
+      <div class="step"><div><h3>Java's AOT cache with streamable objects</h3><p>A training run records what Paper loads, links and runs. On Java 25 Minecraft's method type table is too big for the cache. Java 26's streamable AOT objects make the full 230 MB cache fit.</p></div></div>
+      <div class="step"><div><h3>A faster lazymc</h3><p>Fixes for detecting current Paper versions, status checks every 50 ms while waking, no pointless polling of a frozen server and a clean, saving shutdown even while frozen.</p></div></div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="kicker">INSTALL</div>
+    <h2>Get started</h2>
+    <p class="sub">Linux with systemd and tmux, Paper 26 or newer and Java 26. Ubuntu 26.04: <code>apt install openjdk-26-jre-headless tmux</code>.</p>
+    <div class="steps">
+      <div class="step"><div><h3>Get Blink</h3>
+<pre><span class="c"># in your server folder (next to paper.jar)</span>
+git clone https://github.com/kylianxdev/blinkmc /opt/blinkmc
+cp /opt/blinkmc/start.sh /opt/blinkmc/lazymc.example.toml .
+mv lazymc.example.toml lazymc.toml</pre></div></div>
+      <div class="step"><div><h3>Get the patched lazymc</h3><p>Download the binary from the <a href="https://github.com/kylianxdev/blinkmc/releases">releases</a>, or build it from <a href="https://github.com/kylianxdev/lazymc/tree/blink">the fork</a> with <code>cargo build --release</code>.</p></div></div>
+      <div class="step"><div><h3>Set up sleeping</h3>
+<pre>sudo /opt/blinkmc/setup/enable-sleep.sh   <span class="c"># swap file, zswap, the freeze helper</span>
+sudo cp /opt/blinkmc/systemd/minecraft.service /etc/systemd/system/
+sudo systemctl enable --now minecraft</pre></div></div>
+      <div class="step"><div><h3>Test it</h3>
+<pre>python3 /opt/blinkmc/tools/status-ping.py localhost              <span class="c"># what the server list shows</span>
+python3 /opt/blinkmc/tools/status-ping.py localhost --join --name YourName</pre></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="kicker">FAQ</div>
+    <h2>Questions</h2>
+    <details><summary>Do players need to install anything?</summary><p>No. It is a normal Minecraft server for them. The only thing they may notice is a different MOTD while the server sleeps.</p></details>
+    <details><summary>Can bots keep my server awake?</summary><p>Only players on <code>whitelist.json</code> can wake the server. Scanners try to join public servers all day; without this setting each of them would wake yours.</p></details>
+    <details><summary>Is a frozen server safe for my world?</summary><p>Paper saves every few minutes and nobody has played for 30 minutes when it freezes. Stopping the service thaws the server first and lets Paper save and shut down normally.</p></details>
+    <details><summary>What about plugins, dynmap or BlueMap?</summary><p>Plugins freeze and wake with the server. BlueMap's web server can run on its own, so the web map stays online while the server sleeps. The write-up shows how.</p></details>
+    <details><summary>Does it work with Spigot, Fabric or Forge?</summary><p>The sleeping part works with any server lazymc supports. The fast cold start is written for Paper and its forks (Purpur, Folia, Leaf), because it reads Paper's launcher lists.</p></details>
+  </section>
+</div>
+
+<footer>
+  <div class="grass"></div><div class="dirt"></div>
+  <div class="wrap" style="padding-top:30px">
+    <div><b style="color:var(--text)">Blink</b> by Kylian de Groot. MIT licensed. Not affiliated with Mojang, Microsoft or PaperMC.</div>
+    <div><a href="https://github.com/kylianxdev/blinkmc">GitHub</a> &nbsp; <a href="https://github.com/kylianxdev/blinkmc#readme">Write-up</a> &nbsp; <a href="https://github.com/kylianxdev/lazymc/tree/blink">lazymc fork</a></div>
+  </div>
+</footer>
+
+<script>
+// stars
+const sky = document.getElementById("sky");
+for (let i = 0; i < 70; i++) {
+  const s = document.createElement("i");
+  s.className = "star";
+  s.style.left = Math.random() * 100 + "%";
+  s.style.top = Math.random() * 85 + "%";
+  s.style.animationDelay = (Math.random() * 4).toFixed(2) + "s";
+  if (Math.random() < .2) { s.style.width = s.style.height = "4px"; }
+  sky.appendChild(s);
+}
+// bars grow when the chart scrolls into view
+const fills = document.querySelectorAll(".fill");
+const grow = () => fills.forEach(f => f.style.width = Math.max(1, f.dataset.w / 13.2 * 100) + "%");
+if ("IntersectionObserver" in window) {
+  new IntersectionObserver((e, o) => { if (e.some(x => x.isIntersecting)) { grow(); o.disconnect(); } }, { threshold: .3 }).observe(document.getElementById("chart"));
+} else grow();
+</script>
+</body>
+</html>

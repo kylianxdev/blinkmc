@@ -1,4 +1,4 @@
-# lazymc: the server sleeps when nobody played for 30 minutes and wakes up when someone joins.
+# Blink: the server freezes when nobody played for 30 minutes and wakes up when someone joins.
 # The server list (MOTD, icon, version) keeps working while it sleeps.
 [public]
 address = "0.0.0.0:25565"
@@ -11,8 +11,11 @@ protocol = 777
 address = "127.0.0.1:25566"
 directory = "."
 command = "./start.sh"
-# really stop the JVM (frees its RAM) instead of pausing it with SIGSTOP
-freeze_process = false
+# pause the JVM (SIGSTOP) instead of stopping it: waking up takes 0.1 to 0.4 s instead of a cold
+# start. The freeze helper (setup/enable-sleep.sh) moves its memory to zswap and swap meanwhile.
+freeze_process = true
+# start right away (and freeze after sleep_after), so even the first join after a reboot is fast
+wake_on_start = true
 start_timeout = 300
 stop_timeout = 150
 # only players on whitelist.json can wake the server. Keep this on: scanners and bots try to join

@@ -2,6 +2,9 @@
 
     python3 tools/status-ping.py example.org            # what the server list shows
     python3 tools/status-ping.py example.org --join     # wakes the server, prints how long it took
+    python3 tools/status-ping.py example.org --join --name Steve   # a name on whitelist.json
+
+The test join stops at the encryption request, so it never logs in and never shows up in the game.
 
 A join is answered with an encryption request (packet 0x01) once the real server has the player,
 or with a disconnect message (0x00) when lazymc kicks instead.
@@ -68,7 +71,8 @@ def main():
     # join with the protocol the server list reports, or the real server kicks us as outdated
     s = connect(host, port, 2, info["version"]["protocol"])
     started = time.time()
-    s.send(packet(varint(0) + varint(4) + b"Test" + uuid.uuid4().bytes))
+    name = (sys.argv[sys.argv.index("--name") + 1] if "--name" in sys.argv else "Test").encode()
+    s.send(packet(varint(0) + varint(len(name)) + name + uuid.uuid4().bytes))
     read_varint(s)
     kind = read_varint(s)
     took = time.time() - started
