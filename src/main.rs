@@ -76,7 +76,8 @@ impl log::Log for Logger {
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
             let target = record.target().replacen("lazymc", "blink", 1);
-            eprintln!(" {:<5} {} > {}", record.level(), target, record.args());
+            let time = chrono::Local::now().format("%H:%M:%S");
+            eprintln!("[{time}] {:<5} {} > {}", record.level(), target, record.args());
         }
     }
 

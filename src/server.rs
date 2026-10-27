@@ -803,11 +803,13 @@ async fn unfreeze_server_signal(config: &Config, server: &Server) -> bool {
     }
     server.frozen_since.write().await.take();
 
+    // A thawed server was running when it was frozen, so it is ready right away: let held players
+    // through now instead of waiting for a status check (which a just thawed server can answer slowly)
     server
-        .update_state_from(Some(State::Stopping), State::Starting, config)
+        .update_state_from(Some(State::Stopping), State::Started, config)
         .await;
     server
-        .update_state_from(Some(State::Stopped), State::Starting, config)
+        .update_state_from(Some(State::Stopped), State::Started, config)
         .await;
 
     true

@@ -84,10 +84,11 @@ pub fn prepare(dir: &Path, args: &[String], proxy_protocol: bool) -> Result<Laun
     let heap_min = get("HEAP_MIN", "256M");
 
     // Aikar's flags, without AlwaysPreTouch (slow start) and ParallelRefProcEnabled (deprecated in
-    // 26). Start small and give memory back when it is quiet: G1 collects after 15 s without other
-    // GCs and returns what it doesn't need, so an empty server is small by the time it is frozen.
+    // 26). The heap starts small and gives memory back after collections. (A periodic GC made a
+    // frozen server only a few MB smaller, but right after a thaw it pulled the whole heap back
+    // into RAM, so the first join took seconds instead of a fraction of one.)
     let mut flags: Vec<String> = format!(
-        "-Xms{heap_min} -Xmx{heap} -XX:G1PeriodicGCInterval=15000 -XX:MinHeapFreeRatio=15 \
+        "-Xms{heap_min} -Xmx{heap} -XX:MinHeapFreeRatio=15 \
          -XX:MaxHeapFreeRatio=40 -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem \
          -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1HeapRegionSize=8M -XX:G1HeapWastePercent=5 \
          -XX:G1MaxNewSizePercent=40 -XX:G1MixedGCCountTarget=4 -XX:G1MixedGCLiveThresholdPercent=90 \

@@ -110,7 +110,8 @@ usage_stats = true
 version = "0.2.11"
 "#,
         version_name = quote(&format!("{brand} {version}")),
-        inner = port as u32 + 1,
+        // well away from the public port: in a network the next ports are often other servers
+        inner = if port <= 55535 { port as u32 + 10000 } else { port as u32 - 10000 },
         command = quote(&format!("blink-paper HEAP={heap} JAR={jar}{java}")),
         proxy_note = if proxy { "" } else { " (after the first start: run blink init --force again)" },
         min_online = sleep.min(60),

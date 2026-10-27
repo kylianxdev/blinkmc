@@ -29,6 +29,7 @@ hardware; [`tools/`](tools) has the scripts to measure them yourself.
 | | Stock Paper | With Blink |
 |---|---|---|
 | Join on a sleeping server until the real server takes over | not possible | **0.1 to 0.4 s** |
+| Switch (BungeeCord or Velocity) to a sleeping server until in game | not possible | **0.3 to 1.7 s** |
 | Cold start (after a reboot or an update) | 13.2 s | **4.4 s** |
 | Memory of a server nobody plays on | 3.0 GB in RAM, 8 GB reserved | **0.19 GB**, compressed |
 | Blink itself | | **1.5 MB** of RAM, one 1.6 MB file |
@@ -49,8 +50,10 @@ RAM, and wakes it up as soon as someone joins. It is built on
   games and browser get it, and the machine can idle instead of ticking an empty world all day.
 * **Several servers on one machine.** Survival, creative, a modded test world, an event map: only
   the ones people are on stay awake.
-* **Behind BungeeCord or Velocity** (experimental): put a Blink in front of each backend server, and
-  backend servers nobody is on sleep. Let us know how it works for you.
+* **Networks behind BungeeCord or Velocity.** A Blink in front of each backend server: lobby,
+  survival, minigames, a personal world per player. Only the servers people are on stay awake, and
+  switching to a sleeping one with `/server` just works. [Tested](#networks-bungeecord-and-velocity)
+  with one proxy and five servers.
 
 ## Install
 
@@ -84,6 +87,42 @@ Then start the server with `start-blink.bat`. More options in [Install](#7-insta
 | Windows | yes (NtSuspendProcess) | handed to Windows' memory compression by Blink |
 
 All three are tested on every change with a real Paper server (GitHub Actions).
+
+## Networks: BungeeCord and Velocity
+
+Put a Blink in front of every backend server, and point the proxy at Blink's ports. A player who
+switches to a sleeping server with `/server` (or a plugin that sends them there) wakes it up; the
+proxy just sees a server that answers a little later.
+
+**Tested** with one proxy, a lobby and four "personal worlds", each a Paper server behind its own
+Blink, with bots that log in for real and switch servers (`tools/network-test.py`), on BungeeCord
+and on Velocity (legacy and modern forwarding):
+
+| | BungeeCord | Velocity (modern) |
+|---|---|---|
+| Join the network while everything sleeps (lobby thaws) | 0.8 to 1.4 s | 1.1 to 1.6 s |
+| Switch to your own sleeping world | 0.3 to 1.5 s | 1.2 to 1.7 s |
+| Four players at once, each to their own sleeping world | 0.24 to 0.31 s each | 1.3 to 1.7 s each |
+| The first visit after a server (re)started | about 3 to 5 s | about 3 s |
+| Switch between awake worlds | 0.1 to 0.3 s | 0.3 to 0.6 s |
+| Everyone left: all five servers saved and frozen | after 30 s | after 30 s |
+| RAM of the five servers, frozen / awake with players | 1.0 GB / 2.9 GB | 1.0 GB / 2.6 GB |
+
+(The first visit after a restart is slower because Java hasn't compiled the login code yet; after
+that every thaw is fast. Each Blink uses 1.4 MB; the proxy itself stays awake.)
+
+Setup, per backend server:
+
+1. In each server folder: `blink init` (or the installer with `--name` per server). Blink takes the
+   port from `server.properties` as its public port and moves the server 10000 ports up.
+2. In the proxy's server list, use those public ports, as you would without Blink.
+3. Forwarding as usual: BungeeCord `ip_forward: true` with `settings.bungeecord: true` in each
+   `spigot.yml`, or Velocity modern forwarding with `proxies.velocity` in each `paper-global.yml`.
+4. Set `send_proxy_v2 = false` in each `blink.toml`: behind a proxy the players' IPs come with the
+   forwarding.
+5. With `stop_after` (deep sleep), the first join after a day is a cold start of about 4 s; raise
+   the proxy's timeout to be safe (BungeeCord `server_connect_timeout: 15000`, Velocity
+   `connection-timeout = 15000`).
 
 **Safe for your world?** Blink saves the world before every freeze and lets Paper save and stop
 normally when you stop it, also while frozen. Nothing in Paper or your world is changed. Still: try
@@ -245,11 +284,15 @@ adds:
   `memory.reclaim` (the service lets it, with one `chown` before it starts). The kernel moves the heap into **zswap** and the coldest pages to a swap file.
   With lz4 a server went from 3.0 GB to 0.9 GB; zstd compresses better (3.9:1 instead of 2.7:1) and
   still wakes in 0.3 s, so Blink uses zstd.
-* **Shrink before freezing.** The heap starts at 256 MB instead of the maximum
-  (`-Xms256M -Xmx8G`), and `-XX:G1PeriodicGCInterval=15000` lets G1 collect and give memory back
-  15 seconds into a quiet moment, before the freeze at 30 seconds. A frozen server keeps
-  **0.19 GB** (0.26 GB with `-Xms1G`; a GC after the freeze made it worse, it pulled everything
-  back in).
+* **A small heap, and no periodic GC.** The heap starts at 256 MB instead of the maximum
+  (`-Xms256M -Xmx8G`) and gives memory back after collections, so a quiet server is small when it
+  freezes: **0.19 to 0.25 GB** frozen. We also tried a GC every 15 seconds of quiet
+  (`G1PeriodicGCInterval`): it made a frozen server only a few MB smaller, but right after a thaw
+  it fired at once and pulled the whole heap back into RAM, so a join took 3 to 5 seconds instead
+  of under one. It's gone.
+* **Let the player through right after a thaw.** A thawed server was running when it was frozen,
+  so Blink passes the join on at once instead of first asking the server for its status (a just
+  thawed server can take seconds to answer that).
 * **Save, then freeze after 30 seconds.** With a 0.3 s wake up there is no reason to wait long.
   Minecraft does not save when it pauses an empty server, so Blink types `save-all` in the console,
   waits for "Saved the game", checks that nobody joined meanwhile, and only then freezes. A reboot of the machine while the server is frozen loses nothing.
@@ -367,8 +410,8 @@ regions. `tools/benchmark.sh` does the full run.
 * **Disk**: 230 MB for the cache, plus a swap file.
 * **Diagnostic flag.** If `AOTStreamableObjects` changes in a later Java, the cache build fails and
   the launcher simply starts without a cache.
-* **One server per Blink.** Behind BungeeCord or Velocity that means one Blink per backend server
-  (not tested much yet).
+* **One server per Blink.** Behind BungeeCord or Velocity: one Blink per backend server (each uses
+  about 1.4 MB). The proxy itself stays awake.
 * **Moving a frozen server's memory out of RAM** is strongest on Linux (zswap and swap, set up by the
   full install). On macOS and Windows the OS compresses it itself; it stays a bit bigger.
 
@@ -458,6 +501,9 @@ sudo BLINK_BINARY=target/x86_64-unknown-linux-musl/release/blink bash install.sh
 | `.github/workflows/build.yml` | Builds for 5 platforms and tests a real server on Linux, macOS and Windows |
 | `systemd/bluemap-web.service` | Optional: BlueMap's web server, separate from the game server |
 | `tools/smoke-test.py` | End to end test: start, freeze, wake up, stop (what CI runs) |
+| `tools/network-test.py` | A proxy with five servers: bots join, switch worlds, leave; times and RAM |
+| `tools/netbot.py` | A tiny Minecraft 26.3 client for those tests (login, configuration, `/server`) |
+| `tools/thaw-bench.py` | Repeatedly: switch to a frozen server through the proxy, time until in game |
 | `tools/benchmark.sh` | Cold starts, memory with simulated players, freeze and wake |
 | `tools/proxy-bench/` | Throughput of the proxy |
 | `tools/status-ping.py` | Server list ping, or a test join that wakes the server |

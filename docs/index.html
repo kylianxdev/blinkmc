@@ -176,7 +176,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <div class="states">
       <div class="state"><span class="tag t-awake">FRIENDS</span><h3>A server for your friends</h3><p>Empty most of the day. Asleep it costs a few hundred MB instead of gigabytes: a smaller VPS does, or one machine runs more servers.</p></div>
       <div class="state"><span class="tag t-frozen">AT HOME</span><h3>Hosting on your own PC</h3><p>A frozen server uses no CPU and hands its memory back, so your games and browser get it, and your PC can idle instead of ticking an empty world all day.</p></div>
-      <div class="state"><span class="tag t-cold">NETWORKS</span><h3>Several servers, one machine</h3><p>Survival, creative, an event map, servers behind BungeeCord or Velocity (experimental): only the ones people are on stay awake.</p></div>
+      <div class="state"><span class="tag t-cold">NETWORKS</span><h3>Networks</h3><p>Behind BungeeCord or Velocity, one Blink per server: lobby, minigames, a personal world per player. Only the servers people are on stay awake; <code>/server</code> wakes a sleeping one. Tested with five servers.</p></div>
     </div>
   </section>
 
@@ -232,6 +232,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
       <div class="vs-row"><span class="lbl">Saves before sleeping</span><span class="bad">no</span><span class="good">yes</span></div>
       <div class="vs-row"><span class="lbl">Stop while asleep</span><span class="bad">hangs until systemd kills it</span><span class="good">saves and stops in 1 to 2 s</span></div>
       <div class="vs-row"><span class="lbl">Players' real IPs</span><span class="bad">manual setup</span><span class="good">automatic</span></div>
+      <div class="vs-row"><span class="lbl">BungeeCord / Velocity network</span><span class="bad">kicks the player (no server detected)</span><span class="good">tested: switch to a sleeping world in 0.3 to 1.7 s</span></div>
       <div class="vs-row"><span class="lbl">Fast Paper start</span><span class="bad">no (13 s)</span><span class="good">4.4 s, built in</span></div>
     </div>
   </section>
@@ -277,6 +278,7 @@ curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh 
     <h2>Questions</h2>
     <details><summary>Do players need to install anything?</summary><p>No. It is a normal Minecraft server for them. The only thing they may notice is a different MOTD while the server sleeps.</p></details>
     <details><summary>Do I need a whitelist?</summary><p>No. Without a whitelist anyone can wake the server, also new players. A bot that wakes it only keeps it awake until the next freeze, 30 seconds later. With the whitelist on, only whitelisted players can wake it. Want to keep bots out without a whitelist? Set <code>wake_known_players = true</code>: then only players who joined before can.</p></details>
+    <details><summary>Does it work with BungeeCord or Velocity?</summary><p>Yes: put a Blink in front of each backend server and point the proxy at Blink's ports. Tested with one proxy, a lobby and four personal worlds, with bots that log in and switch: a switch to a sleeping world takes 0.3 to 1.7 s until you are in it (about 3 s on the first visit after a server restart), and all five servers frozen use about 1 GB together. Setup in the <a href="https://github.com/kylianxdev/blinkmc#networks-bungeecord-and-velocity">README</a>.</p></details>
     <details><summary>Does it work for big servers?</summary><p>Yes. One thread passes about 1 GB/s of player traffic, enough for well over a thousand players; <code>--threads 4</code> doubles that for 56 kB of extra memory. A big server is rarely empty, so it simply stays awake.</p></details>
     <details><summary>Is a frozen server safe for my world?</summary><p>Blink makes Paper save the world right before it freezes, and checks that nobody joined meanwhile. Stopping it thaws the server first and lets Paper save and shut down normally. Nothing in Paper or your world is changed. Still: try it with a fresh backup first, like any tool that runs your server.</p></details>
     <details><summary>Does it need root or change my system?</summary><p>Only the full Linux install: it adds a service, a swap file and zswap, so a frozen server's memory can leave RAM. The portable install (Linux, macOS) and the Windows install change nothing outside your server folder.</p></details>

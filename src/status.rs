@@ -184,6 +184,12 @@ pub async fn serve(
             inbound_history.extend(&raw);
             inbound_history.extend(&buf);
 
+            // A thawed server is ready right away: pass the player on directly, no need to hold
+            if server.state() == server::State::Started {
+                crate::service::server::route_proxy_queue(inbound, config, inbound_history.clone());
+                return Ok(());
+            }
+
             // Build inbound packet queue with everything from login start (including this)
             let mut login_queue = BytesMut::with_capacity(raw.len() + buf.len());
             login_queue.extend(&raw);
