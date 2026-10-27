@@ -231,8 +231,163 @@ def tree():
     print(f"tree.png: {W}x{H}, {os.path.getsize(os.path.join(OUT, 'tree.png'))} bytes")
 
 
+# 16x16 icons, drawn as text: one letter per pixel, "." is transparent
+ICON_COLORS = {
+    "y": (250, 214, 64), "Y": (255, 242, 150), "o": (226, 150, 40), "O": (180, 100, 30),
+    "w": (236, 236, 222), "g": (170, 170, 158), "G": (120, 120, 112),
+    "b": (122, 82, 48), "B": (86, 56, 32), "l": (160, 112, 64),
+    "s": (150, 150, 156), "S": (100, 100, 108), "c": (110, 210, 230), "C": (60, 150, 190),
+    "r": (200, 50, 46), "R": (140, 30, 30), "p": (236, 220, 196), "k": (30, 30, 36),
+    "e": (74, 160, 60), "E": (40, 110, 40), "m": (222, 226, 206), "M": (180, 184, 166),
+    "f": (255, 170, 40), "F": (255, 230, 120), "v": (150, 90, 200), "u": (60, 90, 200),
+}
+ICONS = {
+    "sun": [
+        "................", "...oooooooooo...", "..oyyyyyyyyyyo..", ".oyYYyyyyyyyyyo.",
+        ".oyYyyyyyyyyyyo.", ".oyyyyyyyyyyyyo.", ".oyyyyyyyyyyyyo.", ".oyyyyyyyyyyyyo.",
+        ".oyyyyyyyyyyyyo.", ".oyyyyyyyyyyyyo.", ".oyyyyyyyyyyyyo.", ".oyyyyyyyyyyyyo.",
+        ".oyyyyyyyyyyyOo.", "..oyyyyyyyyyOo..", "...oooooooooo...", "................"],
+    "moon": [
+        "................", "...MMMMMMMMMM...", "..MmmmmmmmmmmM..", ".MmmmGmmmmmmmmM.",
+        ".MmmGGmmmmmmmmM.", ".MmmmmmmmmGmmmM.", ".MmmmmmmmmmmmmM.", ".MmmmmmmmmmmmmM.",
+        ".MmmmmmmGGmmmmM.", ".MmGmmmmGGmmmmM.", ".MmmmmmmmmmmmmM.", ".MmmmmmmmmmmGmM.",
+        ".MmmmmmmmmmmmmM.", "..MmmmmmmmmmmM..", "...MMMMMMMMMM...", "................"],
+    "bed": [
+        "................", "................", "................", "................",
+        "................", "..ww............", ".wwwwrrrrrrrrrr.", ".wwwwrrrrrrrrrr.",
+        ".wwwgRRRRRRRRRR.", ".bbbbbbbbbbbbbb.", ".llllllllllllll.", ".b............b.",
+        ".b............b.", "................", "................", "................"],
+    "pick": [
+        "................", "...ccccccc......", "..cCCCCCCCcc....", ".cC.......Ccc...",
+        ".c.......BCcc...", ".........bBCc...", "........bB.Cc...", ".......bB..cc...",
+        "......bB...c....", ".....bB.........", "....bB..........", "...bB...........",
+        "..bB............", ".bB.............", "................", "................"],
+    "book": [
+        "................", "..RRRRRRRRRRR...", "..RrrrrrrrrrRp..", "..RryyyyyyyrRp..",
+        "..RrrrrrrrrrRp..", "..RrrrrrrrrrRp..", "..RrrrrrrrrrRp..", "..RrrrrrrrrrRp..",
+        "..RrrrrrrrrrRp..", "..RrrrrrrrrrRp..", "..RrrrrrrrrrRp..", "..RrrrrrrrrrRp..",
+        "..RRRRRRRRRRRp..", "...ppppppppppp..", "................", "................"],
+    "clock": [
+        "................", ".....oooooo.....", "...ooyyyyyyoo...", "..oyyyyGyyyyyo..",
+        "..oyyyyGyyyyyo..", ".oyyyyyGyyyyyyo.", ".oyyyyyGyyyyyyo.", ".oyyyyyGGGGyyyo.",
+        ".oyyyyyyyyyyyyo.", ".oyyyyyyyyyyyyo.", "..oyyyyyyyyyyo..", "..oyyyyyyyyyyo..",
+        "...ooyyyyyyoo...", ".....oooooo.....", "................", "................"],
+    "torch": [
+        "................", ".......F........", "......FfF.......", "......fff.......",
+        "......fFf.......", ".......b........", ".......b........", ".......B........",
+        ".......b........", ".......B........", ".......b........", ".......B........",
+        ".......b........", ".......B........", "................", "................"],
+    "chest": [
+        "................", "................", "..BBBBBBBBBBBB..", "..BllllllllllB..",
+        "..BllllllllllB..", "..BbbbbsSbbbbB..", "..BBBBBsSBBBBB..", "..BllllllllllB..",
+        "..BllllllllllB..", "..BllllllllllB..", "..BllllllllllB..", "..BbbbbbbbbbbB..",
+        "..BBBBBBBBBBBB..", "................", "................", "................"],
+    "sapling": [
+        "................", "......ee........", ".....eEee.......", "....eeEeee..e...",
+        "...eeeeeE..eEe..", "....eEee..eeee..", ".......b.eeE....", ".......bee......",
+        "......eb........", ".....eEb........", "......eb........", ".......b........",
+        ".......B........", "....llllllll....", "....bbbbbbbb....", "................"],
+}
+
+
+def icons():
+    names = list(ICONS)
+    img = Image.new("RGBA", (16 * len(names), 16), (0, 0, 0, 0))
+    for i, name in enumerate(names):
+        for y, row in enumerate(ICONS[name]):
+            for x, ch in enumerate(row):
+                if ch in ICON_COLORS:
+                    img.putpixel((i * 16 + x, y), ICON_COLORS[ch] + (255,))
+    img.save(os.path.join(OUT, "icons.png"), optimize=True)
+    print(f"icons.png: {' '.join(names)}, {os.path.getsize(os.path.join(OUT, 'icons.png'))} bytes")
+
+
+def figures():
+    """32x32 pictures: two players (our own, not Steve), a PC and a server rack."""
+    rnd = random.Random(9)
+    img = Image.new("RGBA", (128, 32), (0, 0, 0, 0))
+    px = img.load()
+    def rect(x0, y0, w, h, c):
+        for y in range(y0, y0 + h):
+            for x in range(x0, x0 + w):
+                px[x, y] = c + (255,)
+    def player(ox, hair, skin, shirt, pants, cap=None):
+        rect(ox + 11, 2, 10, 10, skin)                      # head
+        rect(ox + 11, 2, 10, 3, hair)
+        rect(ox + 11, 5, 2, 2, hair); rect(ox + 19, 5, 2, 2, hair)
+        rect(ox + 13, 7, 2, 2, (255, 255, 255)); rect(ox + 17, 7, 2, 2, (255, 255, 255))
+        rect(ox + 14, 7, 1, 2, (40, 60, 120)); rect(ox + 18, 7, 1, 2, (40, 60, 120))
+        rect(ox + 14, 10, 4, 1, (150, 80, 60))
+        if cap:
+            rect(ox + 10, 1, 12, 2, cap); rect(ox + 10, 3, 14, 1, cap)
+        rect(ox + 11, 12, 10, 10, shirt)                    # body
+        rect(ox + 8, 12, 3, 9, shirt); rect(ox + 21, 12, 3, 9, shirt)
+        rect(ox + 8, 20, 3, 2, skin); rect(ox + 21, 20, 3, 2, skin)
+        rect(ox + 11, 22, 10, 8, pants)                     # legs
+        rect(ox + 15, 24, 2, 6, tuple(max(0, c - 30) for c in pants))
+        rect(ox + 11, 29, 4, 2, (60, 60, 64)); rect(ox + 17, 29, 4, 2, (60, 60, 64))
+    player(0, (90, 56, 30), (232, 180, 140), (56, 150, 90), (60, 70, 140))
+    player(32, (230, 190, 90), (240, 196, 160), (190, 70, 70), (70, 60, 50), cap=(60, 90, 200))
+    # a PC: monitor with a little world on it, keyboard
+    rect(66, 3, 28, 20, (40, 40, 46))
+    rect(68, 5, 24, 16, (110, 160, 230))
+    for x in range(68, 92):
+        h = 14 + (x * 7 % 5 == 0)
+        rect(x, 5 + h - 1, 1, 16 - h + 1, (86, 160, 60))
+        rect(x, 5 + h + 1, 1, max(0, 16 - h - 1), (134, 96, 62))
+    rect(86, 8, 3, 3, (250, 214, 64))
+    rect(78, 23, 4, 3, (60, 60, 66)); rect(72, 26, 16, 2, (60, 60, 66))
+    rect(66, 29, 28, 3, (80, 80, 88))
+    for x in range(67, 93, 2):
+        px[x, 30] = (140, 140, 150, 255)
+    # a server rack with blinking lights: one row awake (green), the rest asleep (blue)
+    rect(100, 1, 24, 30, (30, 32, 40))
+    for i, y in enumerate(range(3, 29, 5)):
+        rect(102, y, 20, 4, (64, 66, 78))
+        rect(104, y + 1, 2, 2, (93, 201, 63) if i in (1, 3) else (124, 156, 255))
+        for x in range(108, 120, 2):
+            px[x, y + 2] = (40, 42, 50, 255)
+    img.save(os.path.join(OUT, "figures.png"), optimize=True)
+    print(f"figures.png: {os.path.getsize(os.path.join(OUT, 'figures.png'))} bytes")
+
+
+def clouds():
+    """Flat Minecraft clouds for the night sky, drifting slowly."""
+    img = Image.new("RGBA", (160, 24), (0, 0, 0, 0))
+    for cx, cy, w, h in [(6, 6, 34, 6), (14, 3, 16, 3), (70, 12, 46, 6), (82, 9, 22, 3), (128, 4, 26, 5)]:
+        for y in range(cy, cy + h):
+            for x in range(cx, cx + w):
+                img.putpixel((x, y), (70, 84, 140, 150))
+    img.save(os.path.join(OUT, "clouds.png"), optimize=True)
+    print(f"clouds.png: {os.path.getsize(os.path.join(OUT, 'clouds.png'))} bytes")
+
+
+def ground():
+    """A 64x48 strip for the footer: grass blocks, dirt and stone with a little ore, four blocks wide
+    so it doesn't repeat every block."""
+    rnd = random.Random(13)
+    img = Image.new("RGB", (64, 48))
+    px = img.load()
+    for x in range(64):
+        edge = 3 + (rnd.random() < 0.5) + (rnd.random() < 0.3)
+        for y in range(16):
+            px[x, y] = noise(rnd, (86, 160, 60), 1) if y < edge else noise(rnd, (134, 96, 62), 1)
+        for y in range(16, 32):
+            px[x, y] = noise(rnd, (134, 96, 62), 1)
+        for y in range(32, 48):
+            px[x, y] = noise(rnd, (118, 118, 124), 1)
+    # ore: gold in one stone block, coal in another, in small clusters
+    for cx, cy, color in [(5, 37, (236, 196, 64)), (38, 41, (40, 40, 44)), (54, 35, (40, 40, 44))]:
+        for dx, dy in [(0, 0), (1, 0), (1, 1), (2, 1), (0, 2)]:
+            px[cx + dx, cy + dy] = color
+    save(img, "ground.png", 24)
+
 if __name__ == "__main__":
     landscape()
     logo()
     blocks()
     tree()
+    icons()
+    figures()
+    clouds()
+    ground()
