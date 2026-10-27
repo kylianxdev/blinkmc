@@ -128,6 +128,17 @@ h2{font-size:clamp(22px,3.2vw,32px);margin:6px 0 12px;line-height:1.3}
 @keyframes zz{50%{transform:translateY(-6px);opacity:.5}}
 .clouds{position:absolute;inset:0 0 auto;height:96px;background:url(assets/clouds.png) 0 30px/640px 96px repeat-x;image-rendering:pixelated;animation:drift 160s linear infinite;pointer-events:none}
 @keyframes drift{to{background-position:640px 30px}}
+.proof{margin-bottom:22px}
+.proof-t{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;font-size:15px}
+.proof-t b{font:400 15px var(--mc)}
+.pick{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.pick a{text-decoration:none;text-align:center;padding:14px 10px;display:grid;justify-items:center;gap:4px;transition:transform .1s}
+.pick a:hover{transform:translateY(-3px)}
+.pick b{font:400 15px var(--mc);color:#3f3f3f}
+.pick span{font-size:13px;line-height:1.35;color:#555}
+.fig.s{width:64px;height:64px;background-size:256px 64px}
+.fig.s.f-p2{background-position:-64px 0}.fig.s.f-pc{background-position:-128px 0}.fig.s.f-rack{background-position:-192px 0}
+.f-net{background:url(assets/blocks.png) -144px 0/192px 48px!important;width:48px!important;height:48px!important;margin:8px;border:2px solid #000}
 .three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .card{background:var(--bg2);border:2px solid #000;box-shadow:inset 2px 2px 0 #2c3a7a,inset -2px -2px 0 #070b1c;padding:22px}
 .card h3{font-size:18px;margin:12px 0 8px}
@@ -159,7 +170,7 @@ footer{margin-top:90px;background:url(assets/ground.png) 0 0/192px 144px repeat-
 footer .tch{position:absolute;top:-60px;left:12%}
 footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:26px;padding-bottom:40px;color:#e0cdb8;font-size:14px}
 footer a{color:#b8f08f}
-@media(max-width:860px){.ghead{grid-template-columns:1fr}.tree{width:180px;margin:0 auto}.stats{grid-template-columns:1fr 1fr}.demo,.case,.three{grid-template-columns:1fr}.case.f .ct{order:0}.ch{grid-template-columns:1fr 60px}.ch .t{grid-column:1/-1;grid-row:2}.srvs{grid-template-columns:repeat(3,1fr)}nav .links a:not(:last-child){display:none}.vs{grid-template-columns:1fr 1fr}.vs>span:first-child{grid-column:1/-1}}
+@media(max-width:860px){.pick{grid-template-columns:repeat(2,1fr)}.pick a:last-child{grid-column:1/-1}.ghead{grid-template-columns:1fr}.tree{width:180px;margin:0 auto}.stats{grid-template-columns:1fr 1fr}.demo,.case,.three{grid-template-columns:1fr}.case.f .ct{order:0}.ch{grid-template-columns:1fr 60px}.ch .t{grid-column:1/-1;grid-row:2}.srvs{grid-template-columns:repeat(3,1fr)}nav .links a:not(:last-child){display:none}.vs{grid-template-columns:1fr 1fr}.vs>span:first-child{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.bar i,.worlds i{transition:none}.tree,.clouds,.zz{animation:none}}
 </style>
 </head>
@@ -213,10 +224,22 @@ footer a{color:#b8f08f}
 
   <section id="cases">
     <div class="kick"><i class="ic i-chest"></i>USE CASES</div>
-    <h2>Every server that is empty most of the time</h2>
-    <p class="sub">Most Minecraft servers are empty most of the day. Blink makes that time free.</p>
+    <h2>Most servers are empty most of the time</h2>
+    <p class="sub">A Minecraft server only has to run while someone is playing. The rest of the day it keeps gigabytes of RAM and ticks an empty world for nobody. Blink puts it to sleep in those hours and wakes it the moment a player joins: nobody notices, and the memory and CPU are free for everything else.</p>
+    <div class="gui proof">
+      <div class="proof-t"><b>Our own server, the last two weeks</b><span>71 hours with players out of 334</span></div>
+      <div class="day"><i class="a" style="width:21%"></i><i class="z" style="width:79%"></i></div>
+      <div class="ax"><span>21 % someone online</span><span>79 % empty: asleep with Blink</span></div>
+    </div>
+    <div class="pick">
+      <a href="#c-friends" class="gui"><i class="fig s"></i><b>Friends</b><span>a server you play in the evening</span></a>
+      <a href="#c-home" class="gui"><i class="fig s f-pc"></i><b>At home</b><span>hosted on your own PC</span></a>
+      <a href="#c-net" class="gui"><i class="fig s f-net"></i><b>Networks</b><span>BungeeCord and Velocity</span></a>
+      <a href="#c-worlds" class="gui"><i class="fig s f-p2"></i><b>Worlds</b><span>a server for every player</span></a>
+      <a href="#c-hosts" class="gui"><i class="fig s f-rack"></i><b>Hosts</b><span>many servers per machine</span></a>
+    </div>
 
-    <div class="case">
+    <div id="c-friends" class="case">
       <div class="ct">
         <span class="lab"><i class="blk"></i>FRIENDS</span>
         <h3>Your friends' server, without the idle bill</h3>
@@ -231,7 +254,7 @@ footer a{color:#b8f08f}
       </div>
     </div>
 
-    <div class="case f">
+    <div id="c-home" class="case f">
       <div class="ct">
         <span class="lab"><i class="blk b-ice"></i>AT HOME</span>
         <h3>Host at home. Your PC stays yours.</h3>
@@ -248,7 +271,7 @@ footer a{color:#b8f08f}
       </div>
     </div>
 
-    <div class="case">
+    <div id="c-net" class="case">
       <div class="ct">
         <span class="lab"><i class="blk b-gold"></i>NETWORKS</span>
         <h3>The RAM solution for BungeeCord and Velocity</h3>
@@ -262,7 +285,7 @@ footer a{color:#b8f08f}
       </div>
     </div>
 
-    <div class="case f">
+    <div id="c-worlds" class="case f">
       <div class="ct">
         <span class="lab"><i class="blk"></i>WORLDS</span>
         <h3>A world for every player</h3>
@@ -272,7 +295,7 @@ footer a{color:#b8f08f}
       <div class="gui"><div class="worlds" id="worlds"></div></div>
     </div>
 
-    <div class="case">
+    <div id="c-hosts" class="case">
       <div class="ct">
         <span class="lab"><i class="blk b-stone"></i>HOSTS</span>
         <h3>More servers on the same machine</h3>
