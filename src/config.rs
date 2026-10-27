@@ -12,7 +12,7 @@ use crate::util::error::{quit_error, quit_error_msg, ErrorHintsBuilder};
 use crate::util::serde::to_socket_addrs;
 
 /// Default configuration file location.
-pub const CONFIG_FILE: &str = "lazymc.toml";
+pub const CONFIG_FILE: &str = "blink.toml";
 
 /// Configuration version user should be using, or warning will be shown.
 const CONFIG_VERSION: &str = "0.2.8";
@@ -185,6 +185,10 @@ pub struct Server {
     #[serde(default)]
     pub before_freeze: Option<String>,
 
+    /// Make the server save its world (`save-all`) and wait for it before it is frozen.
+    #[serde(default = "bool_true")]
+    pub save_before_freeze: bool,
+
     /// Immediately wake server when starting lazymc.
     #[serde(default)]
     pub wake_on_start: bool,
@@ -212,6 +216,11 @@ pub struct Server {
     /// To wake server, user must be in server whitelist if enabled on server.
     #[serde(default = "bool_true")]
     pub wake_whitelist: bool,
+
+    /// Without a whitelist: only players who joined before (usercache.json) can wake the server, so
+    /// the bots that scan the internet all day can't. Anyone can while nobody joined yet.
+    #[serde(default = "bool_true")]
+    pub wake_known_players: bool,
 
     /// Block banned IPs as listed in banned-ips.json in server directory.
     #[serde(default = "bool_true")]
@@ -249,6 +258,11 @@ pub struct Time {
     /// Minimum time in seconds to stay online when server is started.
     #[serde(default, alias = "minimum_online_time")]
     pub min_online_time: u32,
+
+    /// Stop a frozen server completely after it was frozen this many seconds (0: never). A stopped
+    /// server uses no memory at all; the next join is a cold start instead of a thaw.
+    #[serde(default)]
+    pub stop_after: u32,
 }
 
 impl Default for Time {
@@ -256,6 +270,7 @@ impl Default for Time {
         Self {
             sleep_after: 60,
             min_online_time: 60,
+            stop_after: 0,
         }
     }
 }

@@ -1,17 +1,15 @@
 use std::path::Path;
-use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::time::Duration;
-
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 
 use crate::config::{Config, Server as ConfigServer};
 use crate::mc::ban::{self, BannedIps};
 use crate::mc::{server_properties, whitelist};
 use crate::server::Server;
 
-/// File watcher debounce time.
-const WATCH_DEBOUNCE: Duration = Duration::from_secs(2);
+/// How often to look for changed server files. Polling a few files costs nothing and needs no
+/// extra watcher thread or library.
+const POLL_INTERVAL: Duration = Duration::from_secs(3);
 
 /// Service to watch server file changes.
 pub fn service(config: Arc<Config>, server: Arc<Server>) {
@@ -30,6 +28,7 @@ pub fn service(config: Arc<Config>, server: Arc<Server>) {
         // Update all files once
         reload_bans(&config, &server, &dir.join(ban::FILE));
         reload_whitelist(&config, &server, &dir);
+        reload_known_players(&config, &server, &dir);
 
         // Watch for changes, update accordingly
         watch_server(&config, &server, &dir)
@@ -47,47 +46,28 @@ fn watch_server(config: &Config, server: &Server, dir: &Path) -> bool {
         return false;
     }
 
-    // Create watcher for directory
-    let (tx, rx) = channel();
-    let mut watcher =
-        watcher(tx, WATCH_DEBOUNCE).expect("failed to create watcher for banned-ips.json");
-    if let Err(err) = watcher.watch(dir, RecursiveMode::NonRecursive) {
-        error!(target: "lazymc", "An error occured while creating watcher for server files: {}", err);
-        return true;
-    }
+    // Look at the modification times of the files we care about
+    let files = [
+        ban::FILE,
+        whitelist::WHITELIST_FILE,
+        whitelist::OPS_FILE,
+        server_properties::FILE,
+        USERCACHE_FILE,
+    ];
+    let modified = |name: &str| std::fs::metadata(dir.join(name)).and_then(|m| m.modified()).ok();
+    let mut last: Vec<_> = files.iter().map(|name| modified(name)).collect();
 
-    // Handle change events
     loop {
-        match rx.recv().unwrap() {
-            // Handle file updates
-            DebouncedEvent::Create(ref path)
-            | DebouncedEvent::Write(ref path)
-            | DebouncedEvent::Remove(ref path) => {
-                update(config, server, dir, path);
-            }
-
-            // Handle file updates on both paths for rename
-            DebouncedEvent::Rename(ref before_path, ref after_path) => {
-                update(config, server, dir, before_path);
-                update(config, server, dir, after_path);
-            }
-
-            // Ignore write/remove notices, will receive write/remove event later
-            DebouncedEvent::NoticeWrite(_) | DebouncedEvent::NoticeRemove(_) => {}
-
-            // Ignore chmod changes
-            DebouncedEvent::Chmod(_) => {}
-
-            // Rewatch on rescan
-            DebouncedEvent::Rescan => {
-                debug!(target: "lazymc", "Rescanning server directory files due to file watching problem");
-                return true;
-            }
-
-            // Rewatch on error
-            DebouncedEvent::Error(err, _) => {
-                error!(target: "lazymc", "Error occurred while watching server directory for file changes: {}", err);
-                return true;
+        std::thread::sleep(POLL_INTERVAL);
+        if !dir.is_dir() {
+            error!(target: "lazymc", "Server directory does not exist at {} anymore, not watching changes", dir.display());
+            return false;
+        }
+        for (i, name) in files.iter().enumerate() {
+            let now = modified(name);
+            if now != last[i] {
+                last[i] = now;
+                update(config, server, dir, &dir.join(name));
             }
         }
     }
@@ -102,6 +82,11 @@ fn update(config: &Config, server: &Server, dir: &Path, path: &Path) {
         reload_bans(config, server, path);
     }
 
+    // Update known players
+    if path.ends_with(USERCACHE_FILE) {
+        reload_known_players(config, server, dir);
+    }
+
     // Update whitelist
     if path.ends_with(whitelist::WHITELIST_FILE)
         || path.ends_with(whitelist::OPS_FILE)
@@ -109,6 +94,26 @@ fn update(config: &Config, server: &Server, dir: &Path, path: &Path) {
     {
         reload_whitelist(config, server, dir);
     }
+}
+
+/// Players who joined before.
+const USERCACHE_FILE: &str = "usercache.json";
+
+/// Reload the names of players who joined before.
+fn reload_known_players(config: &Config, server: &Server, dir: &Path) {
+    if !config.server.wake_known_players {
+        return;
+    }
+    #[derive(serde::Deserialize)]
+    struct Entry {
+        name: String,
+    }
+    let known = std::fs::read_to_string(dir.join(USERCACHE_FILE))
+        .ok()
+        .and_then(|data| serde_json::from_str::<Vec<Entry>>(&data).ok())
+        .map(|entries| entries.into_iter().map(|e| e.name.to_lowercase()).collect::<Vec<_>>());
+    debug!(target: "lazymc", "Loaded {} known players", known.as_ref().map_or(0, |k| k.len()));
+    futures::executor::block_on(async { *server.known_players.write().await = known });
 }
 
 /// Reload banned IPs.

@@ -8,6 +8,7 @@ extern crate derive_builder;
 extern crate log;
 
 pub(crate) mod action;
+pub(crate) mod blink;
 pub(crate) mod cli;
 pub(crate) mod config;
 pub(crate) mod forge;
@@ -59,7 +60,28 @@ fn init_log() {
     }
 
     // Initialize logger
-    pretty_env_logger::init();
+    let level = env::var("RUST_LOG").unwrap_or_default();
+    let level = level.rsplit('=').next().unwrap_or("").parse().unwrap_or(log::LevelFilter::Info);
+    log::set_max_level(level);
+    let _ = log::set_logger(&Logger);
+}
+
+/// A tiny logger: " INFO  lazymc > message" on stderr. RUST_LOG sets the level (info, debug, trace).
+struct Logger;
+
+impl log::Log for Logger {
+    fn enabled(&self, metadata: &log::Metadata) -> bool {
+        metadata.level() <= log::max_level()
+    }
+
+    fn log(&self, record: &log::Record) {
+        if self.enabled(record.metadata()) {
+            let target = record.target().replacen("lazymc", "blink", 1);
+            eprintln!(" {:<5} {} > {}", record.level(), target, record.args());
+        }
+    }
+
+    fn flush(&self) {}
 }
 
 /// Invoke an action.

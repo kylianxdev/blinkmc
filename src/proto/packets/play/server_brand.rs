@@ -10,7 +10,7 @@ const CHANNEL: &str = "minecraft:brand";
 /// Server brand to send to client in lobby world.
 ///
 /// Shown in F3 menu. Updated once client is relayed to real server.
-const SERVER_BRAND: &[u8] = b"lazymc";
+const SERVER_BRAND: &[u8] = b"blink";
 
 /// Send lobby brand to client.
 pub async fn send(

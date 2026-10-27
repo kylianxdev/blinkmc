@@ -45,6 +45,18 @@ pub async fn monitor_server(config: Arc<Config>, server: Arc<Server>) {
         })
         .await;
 
+        // Stop a server that was frozen for a long time: no memory at all instead of a little.
+        // The next join is a cold start instead of a thaw.
+        if config.time.stop_after > 0 {
+            let limit = Duration::from_secs(config.time.stop_after as u64);
+            let frozen_long = server.frozen_since.read().await.map(|t| t.elapsed() >= limit).unwrap_or(false);
+            if frozen_long {
+                info!(target: "lazymc::monitor", "Server was frozen for {} s, stopping it completely", config.time.stop_after);
+                server.frozen_since.write().await.take();
+                server.stop_for_real(&config).await;
+            }
+        }
+
         // A frozen server can't answer, polling it would only wait for the timeout
         if config.server.freeze_process && server.state() == State::Stopped && server.pid.lock().await.is_some() {
             continue;

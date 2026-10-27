@@ -94,6 +94,15 @@ pub struct Server {
     ///
     /// Sent to clients when they connect to lobby. Recorded from server by probe.
     pub forge_payload: RwLock<Vec<Vec<u8>>>,
+
+    /// The server console (Blink).
+    pub console: Arc<crate::blink::Console>,
+
+    /// Since when the server is frozen.
+    pub frozen_since: RwLock<Option<Instant>>,
+
+    /// Names of players who joined before (usercache.json, lower case), if known.
+    pub known_players: RwLock<Option<Vec<String>>>,
 }
 
 impl Server {
@@ -389,6 +398,20 @@ impl Server {
             .unwrap_or(true)
     }
 
+    /// Whether this player may wake the server without a whitelist: did they join before? `true`
+    /// when no whitelist is used and nobody is known yet (a new server).
+    pub async fn is_known_player(&self, username: &str) -> bool {
+        match self.known_players.read().await.as_ref() {
+            Some(known) if !known.is_empty() => known.contains(&username.to_lowercase()),
+            _ => true,
+        }
+    }
+
+    /// Whether a whitelist is in use.
+    pub async fn has_whitelist(&self) -> bool {
+        self.whitelist.read().await.is_some()
+    }
+
     /// Update the list of banned IPs.
     pub async fn set_banned_ips(&self, ips: BannedIps) {
         *self.banned_ips.write().await = ips;
@@ -431,6 +454,9 @@ impl Default for Server {
             rcon_last_stop: Default::default(),
             probed_join_game: Default::default(),
             forge_payload: Default::default(),
+            console: Default::default(),
+            frozen_since: Default::default(),
+            known_players: Default::default(),
         }
     }
 }
@@ -474,6 +500,9 @@ impl State {
     }
 }
 
+/// Blink's Paper launcher, see src/paper.sh.
+const PAPER_LAUNCHER: &str = include_str!("paper.sh");
+
 /// Invoke server command, store PID and wait for it to quit.
 pub async fn invoke_server_cmd(
     config: Arc<Config>,
@@ -481,9 +510,34 @@ pub async fn invoke_server_cmd(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Configure command
     let args = shlex::split(&config.server.command).expect("invalid server command");
-    let mut cmd = Command::new(&args[0]);
-    cmd.args(args.iter().skip(1));
+    let mut cmd = if args[0] == "blink-paper" {
+        // Blink's built in Paper launcher (src/paper.sh), settings as KEY=VALUE arguments
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg(PAPER_LAUNCHER).arg("blink-paper");
+        for arg in &args[1..] {
+            if let Some((key, value)) = arg.split_once('=') {
+                cmd.env(key, value);
+            }
+        }
+        cmd.env("PROXY_PROTOCOL", config.server.send_proxy_v2.to_string());
+        cmd
+    } else {
+        let mut cmd = Command::new(&args[0]);
+        cmd.args(args.iter().skip(1));
+        cmd
+    };
     cmd.kill_on_drop(true);
+
+    // Its own process group (Ctrl+C in our terminal reaches only us), console through us
+    #[cfg(unix)]
+    unsafe {
+        cmd.pre_exec(|| {
+            libc::setpgid(0, 0);
+            Ok(())
+        });
+    }
+    cmd.stdin(std::process::Stdio::piped());
+    cmd.stdout(std::process::Stdio::piped());
 
     // Set working directory
     if let Some(ref dir) = ConfigServer::server_directory(&config) {
@@ -499,12 +553,13 @@ pub async fn invoke_server_cmd(
         }
     };
 
-    // Remember PID
+    // Remember PID, attach the console
     state
         .pid
         .lock()
         .await
         .replace(child.id().expect("unknown server PID"));
+    state.console.attach(child.stdin.take(), child.stdout.take());
 
     // Wait for process to exit, handle status
     let crashed = match child.wait().await {
@@ -532,8 +587,10 @@ pub async fn invoke_server_cmd(
         }
     };
 
-    // Forget server PID
+    // Forget server PID and console
     state.pid.lock().await.take();
+    state.console.detach().await;
+    state.frozen_since.write().await.take();
 
     // Give server a little more time to quit forgotten threads
     time::sleep(SERVER_QUIT_COOLDOWN).await;
@@ -646,10 +703,16 @@ async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
         }
     };
 
-    // Before freezing: run the hook (save the world, for example), then make sure nobody joined
-    // while it ran. The monitor waits for us, so ask the server for a fresh status first.
-    if let Some(ref command) = config.server.before_freeze {
-        run_before_freeze(config, command).await;
+    // Before freezing: save the world and run the hook, then make sure nobody joined meanwhile.
+    // The monitor waits for us, so ask the server for a fresh status first.
+    let save = config.server.save_before_freeze;
+    if save || config.server.before_freeze.is_some() {
+        if save && !server.console.save().await {
+            warn!(target: "lazymc", "The server did not confirm the save within 30 seconds, freezing anyway");
+        }
+        if let Some(ref command) = config.server.before_freeze {
+            run_before_freeze(config, command).await;
+        }
         if let Ok(Some(status)) = crate::monitor::poll_server(config, server, config.server.address).await {
             server.update_status(config, Some(status)).await;
         }
@@ -661,6 +724,9 @@ async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
 
     if !os::freeze(pid) {
         error!(target: "lazymc", "Failed to send freeze signal to server process.");
+    } else {
+        server.frozen_since.write().await.replace(Instant::now());
+        crate::blink::reclaim_after_freeze(pid);
     }
 
     server
@@ -706,6 +772,7 @@ async fn unfreeze_server_signal(config: &Config, server: &Server) -> bool {
     if !os::unfreeze(pid) {
         error!(target: "lazymc", "Failed to send unfreeze signal to server process.");
     }
+    server.frozen_since.write().await.take();
 
     server
         .update_state_from(Some(State::Stopping), State::Starting, config)

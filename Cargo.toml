@@ -1,12 +1,12 @@
 [package]
-name = "lazymc"
-version = "0.2.11"
-authors = ["Tim Visee <3a4fb3964f@sinenomine.email>"]
+name = "blink"
+version = "2.0.0"
+authors = ["Kylian de Groot", "Tim Visee (lazymc)"]
 license = "GPL-3.0"
 readme = "README.md"
-homepage = "https://timvisee.com/projects/lazymc"
-repository = "https://gitlab.com/timvisee/lazymc"
-description = "Put your Minecraft server to rest when idle."
+homepage = "https://kylianxdev.github.io/blinkmc/"
+repository = "https://github.com/kylianxdev/blinkmc"
+description = "Your Minecraft server sleeps when nobody plays and wakes up in 0.1 seconds. Based on lazymc."
 keywords = ["minecraft", "server", "idle", "cli"]
 categories = ["command-line-interface", "games"]
 exclude = ["/.github", "/contrib"]
@@ -17,9 +17,11 @@ rust-version = "1.74.0"
 codegen-units = 1
 lto = true
 strip = true
+opt-level = "z"
+panic = "abort"
 
 [features]
-default = ["rcon", "lobby"]
+default = []
 
 # RCON support
 # Allow use of RCON to manage (stop) server.
@@ -38,12 +40,9 @@ chrono = "0.4"
 clap = { version = "4.0.32", default-features = false, features = [
     "std",
     "help",
-    "suggestions",
-    "color",
     "usage",
     "cargo",
     "env",
-    "unicode",
 ] }
 colored = "2.0"
 derive_builder = "0.20"
@@ -54,8 +53,6 @@ log = "0.4"
 minecraft-protocol = { git = "https://github.com/mliem2k/rust-minecraft-protocol", rev = "359fb4a" }
 named-binary-tag = "0.6"
 nix = { version = "0.28", features = ["process", "signal"] }
-notify = "4.0"
-pretty_env_logger = "0.5"
 proxy-protocol = "0.5"
 quartz_nbt = "0.2"
 rand = "0.8"
@@ -64,8 +61,9 @@ serde_json = "1.0"
 shlex = "1.1"
 thiserror = "1.0"
 tokio = { version = "1", default-features = false, features = [
-    "rt-multi-thread",
+    "rt",
     "io-util",
+    "io-std",
     "net",
     "macros",
     "time",

@@ -1,13 +1,22 @@
 use std::sync::Arc;
 
 use crate::config::Config;
-use crate::server::{self, Server};
+use crate::server::Server;
 use crate::util::error;
 
 /// Signal handler task.
 pub async fn service(config: Arc<Config>, server: Arc<Server>) {
     loop {
-        // Wait for SIGTERM/SIGINT signal
+        // Wait for SIGINT (Ctrl+C) or SIGTERM (systemd, kill)
+        #[cfg(unix)]
+        {
+            let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {}
+                _ = term.recv() => {}
+            }
+        }
+        #[cfg(not(unix))]
         tokio::signal::ctrl_c().await.unwrap();
 
         // Quit if there is no server process (a frozen server still has one)

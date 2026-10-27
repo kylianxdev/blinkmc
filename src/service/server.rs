@@ -18,7 +18,7 @@ use crate::util::error::{quit_error, ErrorHints};
 /// Main entrypoint to start all server/status/proxy logic.
 ///
 /// Spawns a tokio runtime to complete all work on.
-#[tokio::main(flavor = "multi_thread")]
+#[tokio::main(flavor = "current_thread")]
 pub async fn service(config: Arc<Config>) -> Result<(), ()> {
     // Load server state
     let server = Arc::new(Server::default());
@@ -49,6 +49,9 @@ pub async fn service(config: Arc<Config>) -> Result<(), ()> {
     // Spawn services: monitor, signal handler
     tokio::spawn(service::monitor::service(config.clone(), server.clone()));
     tokio::spawn(service::signal::service(config.clone(), server.clone()));
+
+    // What is typed in our console goes to the server
+    server.console.forward_input();
 
     // Initiate server start
     if config.server.wake_on_start {

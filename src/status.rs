@@ -29,6 +29,9 @@ const DEFAULT_BAN_REASON: &str = "Banned by an operator.";
 /// The not-whitelisted kick message.
 const WHITELIST_MESSAGE: &str = "You are not white-listed on this server!";
 
+/// Kick message for a player who never joined before, while the server sleeps.
+const UNKNOWN_MESSAGE: &str = "§7The server is asleep.§r\n\n§7Only players who played here before can wake it up.\nAsk one of them to join first.";
+
 /// Server icon file path.
 const SERVER_ICON_FILE: &str = "server-icon.png";
 
@@ -162,6 +165,14 @@ pub async fn serve(
                 if !server.is_whitelisted(username).await {
                     info!(target: "lazymc", "User '{}' tried to wake server but is not whitelisted, disconnecting", username);
                     action::kick(&client, WHITELIST_MESSAGE, &mut writer).await?;
+                    break;
+                }
+                if config.server.wake_known_players
+                    && !server.has_whitelist().await
+                    && !server.is_known_player(username).await
+                {
+                    info!(target: "lazymc", "User '{}' tried to wake server but never joined before, disconnecting", username);
+                    action::kick(&client, UNKNOWN_MESSAGE, &mut writer).await?;
                     break;
                 }
             }
