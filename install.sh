@@ -55,7 +55,9 @@ if [ "$UNINSTALL" = 1 ]; then
   for f in start.sh server.properties lazymc.toml; do
     [ -f "$DIR/$f.before-blink" ] && mv -f "$DIR/$f.before-blink" "$DIR/$f" && echo "  restored $f"
   done
-  [ -f "$DIR/lazymc.toml" ] && [ ! -f "$DIR/lazymc.toml.before-blink" ] && rm -f "$DIR/lazymc.toml"
+  # Blink's own files that had nothing to restore
+  grep -qs "^# Blink:" "$DIR/lazymc.toml" && rm -f "$DIR/lazymc.toml"
+  grep -qs "paper.aot" "$DIR/start.sh" && rm -f "$DIR/start.sh"
   rm -f "$DIR"/paper.aot "$DIR"/paper.aot.config "$DIR"/paper.aot.stamp "$DIR"/classpath.txt
   systemctl daemon-reload
   echo "  done. Swap, zswap and /opt/blinkmc are left in place (other servers may use them)."
@@ -138,7 +140,8 @@ if [ -z "$HEAP" ]; then
   h=$(( ram * 6 / 10 )); [ $h -gt 8 ] && h=8; [ $h -lt 2 ] && h=2
   HEAP=${h}G
 fi
-keep() { [ -f "$1" ] && [ ! -f "$1.before-blink" ] && cp -p "$1" "$1.before-blink"; true; }
+# keep the user's own files once (not the ones an earlier Blink install wrote)
+keep() { [ -f "$1" ] && [ ! -f "$1.before-blink" ] && ! grep -qs -e "paper.aot" -e "^# Blink:" "$1" && cp -p "$1" "$1.before-blink"; true; }
 keep start.sh; keep server.properties; keep lazymc.toml
 sed -e "s#^JAVA=.*#JAVA=\${JAVA:-$JAVA}#" -e "s#^HEAP=.*#HEAP=\${HEAP:-$HEAP}#" -e "s#^JAR=.*#JAR=\${JAR:-$JAR}#" \
   "$OPT/start.sh" > start.sh
