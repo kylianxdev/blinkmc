@@ -95,5 +95,10 @@ rewrite_server_properties = true
 # server; give a server with hundreds of players 2 to 4.
 threads = 1
 
+# Anonymous usage count: once a day Blink downloads a 1 byte file from Blink's GitHub releases, and
+# GitHub counts the downloads. That is how we know how many servers use Blink. Nothing is sent: no
+# names, no IPs (beyond what any download shows GitHub), no settings. Also off with DO_NOT_TRACK=1.
+usage_stats = true
+
 [config]
 version = "0.2.11"

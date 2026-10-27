@@ -498,6 +498,10 @@ pub struct Advanced {
     /// Threads for passing on the players' traffic. 1 uses the least memory and is plenty for a
     /// normal server; give a server with hundreds of players a few more.
     pub threads: usize,
+
+    /// Anonymous usage count: once a day Blink downloads a 1 byte file from Blink's GitHub
+    /// releases, and GitHub counts the downloads. Nothing is sent. Also off with DO_NOT_TRACK=1.
+    pub usage_stats: bool,
 }
 
 impl Default for Advanced {
@@ -505,6 +509,7 @@ impl Default for Advanced {
         Self {
             rewrite_server_properties: true,
             threads: 1,
+            usage_stats: true,
         }
     }
 }

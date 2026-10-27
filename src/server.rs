@@ -233,7 +233,6 @@ impl Server {
         }
 
         // Unfreeze server if it is frozen
-        #[cfg(unix)]
         if config.server.freeze_process && unfreeze_server_signal(&config, &server).await {
             return true;
         }
@@ -256,17 +255,21 @@ impl Server {
     #[allow(unused_variables)]
     /// Stop the server process for real, also when it is frozen: thaw it, then ask it to stop
     /// gracefully so it saves the world.
-    #[cfg(unix)]
     pub async fn stop_for_real(&self, config: &Config) -> bool {
         if let Some(pid) = *self.pid.lock().await {
             crate::os::unfreeze(pid);
         }
-        stop_server_signal(config, self).await
+        if stop_server_console(config, self).await {
+            return true;
+        }
+        #[cfg(unix)]
+        return stop_server_signal(config, self).await;
+        #[cfg(not(unix))]
+        return false;
     }
 
     pub async fn stop(&self, config: &Config) -> bool {
-        // Try to freeze through signal
-        #[cfg(unix)]
+        // Try to freeze (every OS)
         if config.server.freeze_process && freeze_server_signal(config, self).await {
             return true;
         }
@@ -274,6 +277,11 @@ impl Server {
         // Try to stop through RCON if started
         #[cfg(feature = "rcon")]
         if self.state() == State::Started && stop_server_rcon(config, self).await {
+            return true;
+        }
+
+        // Type "stop" in the console (works on every OS)
+        if stop_server_console(config, self).await {
             return true;
         }
 
@@ -500,9 +508,6 @@ impl State {
     }
 }
 
-/// Blink's Paper launcher, see src/paper.sh.
-const PAPER_LAUNCHER: &str = include_str!("paper.sh");
-
 /// Invoke server command, store PID and wait for it to quit.
 pub async fn invoke_server_cmd(
     config: Arc<Config>,
@@ -511,15 +516,22 @@ pub async fn invoke_server_cmd(
     // Configure command
     let args = shlex::split(&config.server.command).expect("invalid server command");
     let mut cmd = if args[0] == "blink-paper" {
-        // Blink's built in Paper launcher (src/paper.sh), settings as KEY=VALUE arguments
-        let mut cmd = Command::new("sh");
-        cmd.arg("-c").arg(PAPER_LAUNCHER).arg("blink-paper");
-        for arg in &args[1..] {
-            if let Some((key, value)) = arg.split_once('=') {
-                cmd.env(key, value);
+        // Blink's built in Paper launcher (src/launcher.rs), settings as KEY=VALUE arguments
+        let dir = ConfigServer::server_directory(&config).unwrap_or_else(|| ".".into());
+        let (rest, proxy) = (args[1..].to_vec(), config.server.send_proxy_v2);
+        let launch = tokio::task::spawn_blocking(move || crate::launcher::prepare(&dir, &rest, proxy))
+            .await
+            .map_err(|e| e.to_string())
+            .and_then(|r| r);
+        let launch = match launch {
+            Ok(launch) => launch,
+            Err(err) => {
+                error!(target: "lazymc", "Could not start Paper: {}", err);
+                return Err(err.into());
             }
-        }
-        cmd.env("PROXY_PROTOCOL", config.server.send_proxy_v2.to_string());
+        };
+        let mut cmd = Command::new(&launch.java);
+        cmd.args(&launch.args);
         cmd
     } else {
         let mut cmd = Command::new(&args[0]);
@@ -536,6 +548,8 @@ pub async fn invoke_server_cmd(
             Ok(())
         });
     }
+    #[cfg(windows)]
+    cmd.creation_flags(0x0000_0200); // CREATE_NEW_PROCESS_GROUP
     cmd.stdin(std::process::Stdio::piped());
     cmd.stdout(std::process::Stdio::piped());
 
@@ -692,7 +706,6 @@ async fn stop_server_signal(config: &Config, server: &Server) -> bool {
 /// Freeze server by sending SIGSTOP signal.
 ///
 /// Only available on Unix.
-#[cfg(unix)]
 async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
     // Grab PID
     let pid = match *server.pid.lock().await {
@@ -739,8 +752,21 @@ async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
     true
 }
 
+/// Stop the server by typing "stop" in its console. The server saves and quits by itself.
+async fn stop_server_console(config: &Config, server: &Server) -> bool {
+    if server.pid.lock().await.is_none() || !server.console.command("stop").await {
+        return false;
+    }
+    server
+        .update_state_from(Some(State::Starting), State::Stopping, config)
+        .await;
+    server
+        .update_state_from(Some(State::Started), State::Stopping, config)
+        .await;
+    true
+}
+
 /// Run the before_freeze command in the server directory, at most 60 seconds.
-#[cfg(unix)]
 async fn run_before_freeze(config: &Config, command: &str) {
     let mut cmd = tokio::process::Command::new("sh");
     cmd.arg("-c").arg(command);
@@ -758,7 +784,6 @@ async fn run_before_freeze(config: &Config, command: &str) {
 /// Unfreeze server by sending SIGCONT signal.
 ///
 /// Only available on Unix.
-#[cfg(unix)]
 async fn unfreeze_server_signal(config: &Config, server: &Server) -> bool {
     // Grab PID
     let pid = match *server.pid.lock().await {

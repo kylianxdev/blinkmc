@@ -69,6 +69,9 @@ async fn run(config: Arc<Config>) -> Result<(), ()> {
     // What is typed in our console goes to the server
     server.console.forward_input();
 
+    // Anonymous usage count (one download a day)
+    crate::blink::usage_stats(config.advanced.usage_stats);
+
     // Initiate server start
     if config.server.wake_on_start {
         Server::start(config.clone(), server.clone(), None).await;

@@ -16,8 +16,14 @@ pub async fn service(config: Arc<Config>, server: Arc<Server>) {
                 _ = term.recv() => {}
             }
         }
-        #[cfg(not(unix))]
-        tokio::signal::ctrl_c().await.unwrap();
+        #[cfg(windows)]
+        {
+            let mut ctrl_break = tokio::signal::windows::ctrl_break().unwrap();
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {}
+                _ = ctrl_break.recv() => {}
+            }
+        }
 
         // Quit if there is no server process (a frozen server still has one)
         if server.pid.lock().await.is_none() {

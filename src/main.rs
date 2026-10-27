@@ -9,6 +9,8 @@ extern crate log;
 
 pub(crate) mod action;
 pub(crate) mod blink;
+pub(crate) mod launcher;
+pub(crate) mod zip;
 pub(crate) mod cli;
 pub(crate) mod config;
 pub(crate) mod forge;
@@ -32,9 +34,6 @@ use std::env;
 
 use clap::Command;
 
-// Compile time feature compatability check.
-#[cfg(all(windows, not(feature = "rcon")))]
-compile_error!("Must enable \"rcon\" feature on Windows.");
 
 /// Default log level if none is set.
 const LOG_DEFAULT: &str = "info";
@@ -89,6 +88,11 @@ fn invoke_action(app: Command) -> Result<(), ()> {
     let matches = app.get_matches();
 
     // Config operations
+    if let Some(matches) = matches.subcommand_matches("init") {
+        action::init::invoke(matches);
+        return Ok(());
+    }
+
     if let Some(matches) = matches.subcommand_matches("config") {
         if let Some(matches) = matches.subcommand_matches("generate") {
             action::config_generate::invoke(matches);

@@ -38,34 +38,28 @@ pub fn kill_gracefully(pid: u32) -> bool {
     );
 }
 
-/// Freeze process.
-/// Results in undefined behavior if PID is invaild.
-///
-/// # Panics
-/// Panics on platforms other than Unix.
+/// Freeze (pause) a process: SIGSTOP on Linux and macOS, NtSuspendProcess on Windows.
 #[allow(unreachable_code)]
 pub fn freeze(pid: u32) -> bool {
     #[cfg(unix)]
     return unix_signal(pid, Signal::SIGSTOP);
 
-    unimplemented!(
-        "freezing the Minecraft server process is not implemented on non-Unix platforms"
-    );
+    #[cfg(windows)]
+    return unsafe { windows::suspend(pid, false) };
+
+    false
 }
 
-/// Unfreeze process.
-/// Results in undefined behavior if PID is invaild.
-///
-/// # Panics
-/// Panics on platforms other than Unix.
+/// Unfreeze (continue) a process: SIGCONT on Linux and macOS, NtResumeProcess on Windows.
 #[allow(unreachable_code)]
 pub fn unfreeze(pid: u32) -> bool {
     #[cfg(unix)]
     return unix_signal(pid, Signal::SIGCONT);
 
-    unimplemented!(
-        "unfreezing the Minecraft server process is not implemented on non-Unix platforms"
-    );
+    #[cfg(windows)]
+    return unsafe { windows::suspend(pid, true) };
+
+    false
 }
 
 #[cfg(unix)]
