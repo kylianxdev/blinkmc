@@ -83,6 +83,8 @@ send_proxy_v2 = {proxy}
 [time]
 sleep_after = {sleep}
 minimum_online_time = {min_online}
+# after 10 minutes frozen, its memory moves to disk: about 6 MB of RAM, waking up takes about 3 s (Linux)
+deep_sleep_after = 600
 # after a day frozen, stop completely (no memory at all; the next join is a 4 s cold start)
 stop_after = 86400
 

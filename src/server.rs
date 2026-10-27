@@ -100,6 +100,12 @@ pub struct Server {
     /// Since when the server is frozen.
     pub frozen_since: RwLock<Option<Instant>>,
 
+    /// Whether the frozen server's memory already went to disk (deep sleep).
+    pub deep: std::sync::atomic::AtomicBool,
+
+    /// Whether we already warned that the server could not be stopped.
+    pub stop_warned: std::sync::atomic::AtomicBool,
+
     /// Names of players who joined before (usercache.json, lower case), if known.
     pub known_players: RwLock<Option<Vec<String>>>,
 }
@@ -295,7 +301,10 @@ impl Server {
             return true;
         }
 
-        warn!(target: "lazymc", "Failed to stop server, no more suitable stopping method to use");
+        // say it once, not every poll (for example when another server answers on our port)
+        if !self.stop_warned.swap(true, Ordering::SeqCst) {
+            warn!(target: "lazymc", "Failed to stop server, no more suitable stopping method to use (is another server running on {}?)", config.server.address);
+        }
         false
     }
 
@@ -468,6 +477,8 @@ impl Default for Server {
             forge_payload: Default::default(),
             console: Default::default(),
             frozen_since: Default::default(),
+            deep: Default::default(),
+            stop_warned: Default::default(),
             known_players: Default::default(),
         }
     }
@@ -802,6 +813,7 @@ async fn unfreeze_server_signal(config: &Config, server: &Server) -> bool {
         error!(target: "lazymc", "Failed to send unfreeze signal to server process.");
     }
     server.frozen_since.write().await.take();
+    server.deep.store(false, Ordering::SeqCst);
 
     // A thawed server was running when it was frozen, so it is ready right away: let held players
     // through now instead of waiting for a status check (which a just thawed server can answer slowly)

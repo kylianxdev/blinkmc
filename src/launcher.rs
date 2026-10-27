@@ -121,6 +121,15 @@ pub fn prepare(dir: &Path, args: &[String], proxy_protocol: bool) -> Result<Laun
     }
     set_yaml(&dir.join("config").join("paper-global.yml"), &global);
 
+    // spark (bundled with Paper) samples the CPU all the time in the background; on a server that
+    // mostly sleeps that is wasted work. /spark profiler still works when you need it.
+    let spark = dir.join("plugins").join("spark").join("config.json");
+    if let Ok(text) = fs::read_to_string(&spark) {
+        if text.contains("\"backgroundProfiler\": true") {
+            let _ = fs::write(&spark, text.replace("\"backgroundProfiler\": true", "\"backgroundProfiler\": false"));
+        }
+    }
+
     // New Paper jar or new Java: unpack Paper, write the class path again, throw the cache away
     let stamp = format!("{} {}", file_stamp(&dir.join(&jar)), file_stamp(&fs::canonicalize(&java).unwrap_or(java.clone())));
     if fs::read_to_string(dir.join("paper.aot.stamp")).ok().as_deref() != Some(stamp.as_str()) {

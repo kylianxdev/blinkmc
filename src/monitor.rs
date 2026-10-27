@@ -45,6 +45,18 @@ pub async fn monitor_server(config: Arc<Config>, server: Arc<Server>) {
         })
         .await;
 
+        // Deep sleep: after a while frozen, move the server's memory from zswap to disk (Linux)
+        #[cfg(target_os = "linux")]
+        if config.time.deep_sleep_after > 0 && !server.deep.load(std::sync::atomic::Ordering::SeqCst) {
+            let limit = Duration::from_secs(config.time.deep_sleep_after as u64);
+            let frozen_long = server.frozen_since.read().await.map(|t| t.elapsed() >= limit).unwrap_or(false);
+            let pid = *server.pid.lock().await;
+            if let (true, Some(pid)) = (frozen_long, pid) {
+                server.deep.store(true, std::sync::atomic::Ordering::SeqCst);
+                crate::blink::deep_sleep(pid);
+            }
+        }
+
         // Stop a server that was frozen for a long time: no memory at all instead of a little.
         // The next join is a cold start instead of a thaw.
         if config.time.stop_after > 0 {

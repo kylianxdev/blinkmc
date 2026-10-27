@@ -63,6 +63,11 @@ sleep_after = 30
 # Stay awake at least this many seconds after a wake up.
 minimum_online_time = 30
 
+# Deep sleep (Linux): after the server was frozen this long, its memory moves from compressed RAM
+# (zswap) to the swap file on disk: about 6 MB of RAM instead of 200, and waking up takes about 3 s
+# instead of 1. 0 turns it off.
+deep_sleep_after = 600
+
 # Stop a server that was frozen this long completely (0: never). A stopped server uses no memory
 # at all; the next join is a cold start (about 4 s) instead of a thaw.
 stop_after = 86400

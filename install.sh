@@ -201,10 +201,10 @@ vm.swappiness=10
 vm.page-cluster=0
 S
 sysctl -q -p /etc/sysctl.d/90-blink.conf
-modprobe zstd 2>/dev/null || true
-echo zstd > /etc/modules-load.d/blink-zswap.conf
+modprobe lz4 2>/dev/null || true
+echo lz4 > /etc/modules-load.d/blink-zswap.conf
 cat > /etc/tmpfiles.d/blink-zswap.conf <<'T'
-w /sys/module/zswap/parameters/compressor - - - - zstd
+w /sys/module/zswap/parameters/compressor - - - - lz4
 w /sys/module/zswap/parameters/max_pool_percent - - - - 25
 w /sys/module/zswap/parameters/enabled - - - - Y
 T
@@ -223,7 +223,7 @@ Wants=network-online.target
 User=$OWNER
 WorkingDirectory=$DIR
 # Blink runs as $OWNER and moves a frozen server's memory out of RAM itself (memory.reclaim)
-ExecStartPre=+/bin/sh -c 'chown $OWNER /sys/fs/cgroup/system.slice/%n/memory.reclaim'
+ExecStartPre=+/bin/sh -c 'chown $OWNER /sys/fs/cgroup/system.slice/%n/memory.reclaim /sys/fs/cgroup/system.slice/%n/memory.zswap.max'
 # in tmux, so the console stays reachable: sudo -u $OWNER tmux -L $NAME attach -t $NAME
 ExecStart=/usr/bin/tmux -L $NAME new-session -d -s $NAME $OPT/blink start -c $DIR/blink.toml
 # SIGINT to blink: it thaws a frozen server, lets it save and stop, then quits

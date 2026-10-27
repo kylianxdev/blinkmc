@@ -260,6 +260,12 @@ pub struct Time {
     #[serde(default, alias = "minimum_online_time")]
     pub min_online_time: u32,
 
+    /// Deep sleep after the server was frozen this many seconds (0: never, Linux only): its memory
+    /// moves from compressed RAM (zswap) to the swap file on disk. About 6 MB of RAM instead of 200;
+    /// waking up then takes about 3 s instead of 1.
+    #[serde(default = "u32_600")]
+    pub deep_sleep_after: u32,
+
     /// Stop a frozen server completely after it was frozen this many seconds (0: never). A stopped
     /// server uses no memory at all; the next join is a cold start instead of a thaw.
     #[serde(default)]
@@ -272,6 +278,7 @@ impl Default for Time {
             sleep_after: 60,
             min_online_time: 60,
             stop_after: 0,
+            deep_sleep_after: 600,
         }
     }
 }
@@ -528,6 +535,10 @@ fn option_pathbuf_dot() -> Option<PathBuf> {
 
 fn server_address_default() -> SocketAddr {
     "127.0.0.1:25566".parse().unwrap()
+}
+
+fn u32_600() -> u32 {
+    600
 }
 
 fn u32_300() -> u32 {

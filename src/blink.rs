@@ -154,6 +154,48 @@ fn is_frozen(pid: u32) -> bool {
         .unwrap_or(false)
 }
 
+/// Deep sleep: move the frozen server's memory from zswap (compressed, in RAM) to the swap file on
+/// disk. With zswap closed for our cgroup, a few reclaim rounds write its pages out; what is left
+/// is a few MB of kernel bookkeeping. Waking up then reads from disk: about 3 s instead of 1.
+#[cfg(target_os = "linux")]
+pub fn deep_sleep(pid: u32) {
+    tokio::task::spawn_blocking(move || {
+        let Some(dir) = cgroup() else { return };
+        if !is_frozen(pid) || big_neighbour(&dir, pid).is_some() {
+            return;
+        }
+        let before = read_mb(&dir, "memory.current");
+        if std::fs::write(dir.join("memory.zswap.max"), "0").is_err() {
+            debug!(target: "lazymc", "Can't write memory.zswap.max, no deep sleep (see the README)");
+            return;
+        }
+        // the first rounds move pages out of zswap through RAM, the next ones write them away;
+        // keep going until it stops going down (a big server needs more rounds)
+        let mut lowest = u64::MAX;
+        let mut stuck = 0;
+        for _ in 0..30 {
+            let current = std::fs::read_to_string(dir.join("memory.current")).unwrap_or_default();
+            let _ = std::fs::write(dir.join("memory.reclaim"), format!("{} swappiness=200", current.trim()));
+            std::thread::sleep(Duration::from_millis(700));
+            let now = read_mb(&dir, "memory.current");
+            if now < 16 {
+                break;
+            }
+            if now < lowest {
+                lowest = now;
+                stuck = 0;
+            } else {
+                stuck += 1;
+                if stuck >= 3 {
+                    break;
+                }
+            }
+        }
+        let _ = std::fs::write(dir.join("memory.zswap.max"), "max");
+        info!(target: "lazymc", "Deep sleep: frozen server's memory moved to disk, {} MB -> {} MB in RAM", before, read_mb(&dir, "memory.current"));
+    });
+}
+
 /// A process of more than 50 MB in the cgroup that is neither Blink nor the server.
 #[cfg(target_os = "linux")]
 fn big_neighbour(dir: &std::path::Path, server: u32) -> Option<String> {

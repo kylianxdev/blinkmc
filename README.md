@@ -31,7 +31,7 @@ hardware; [`tools/`](tools) has the scripts to measure them yourself.
 | Join on a sleeping server until the real server takes over | not possible | **0.1 to 0.4 s** |
 | Switch (BungeeCord or Velocity) to a sleeping server until in game | not possible | **0.3 to 1.7 s** |
 | Cold start (after a reboot or an update) | 13.2 s | **4.4 s** |
-| Memory of a server nobody plays on | 3.0 GB in RAM, 8 GB reserved | **0.19 GB**, compressed |
+| Memory of a server nobody plays on | 3.0 GB in RAM, 8 GB reserved | **7 MB** after 10 minutes (0.3 GB before) |
 | Blink itself | | **1.5 MB** of RAM, one 1.6 MB file |
 | Server list (MOTD, icon) while asleep | | works |
 
@@ -106,9 +106,9 @@ and on Velocity (legacy and modern forwarding):
 | The first visit after a server (re)started | about 3 to 5 s | about 3 s |
 | Switch between awake worlds | 0.1 to 0.3 s | 0.3 to 0.6 s |
 | Everyone left: all five servers saved and frozen | after 30 s | after 30 s |
-| RAM of the five servers, frozen / awake with players | 1.0 GB / 2.9 GB | 1.0 GB / 2.6 GB |
+| RAM of the five servers, frozen (first 10 minutes) / awake with players | 1.0 GB / 2.9 GB | 1.0 GB / 2.6 GB |
 
-(The first visit after a restart is slower because Java hasn't compiled the login code yet; after
+(After 10 minutes asleep each server drops to about 7 MB, deep sleep, which this test didn't run long enough to reach; a switch to a server in deep sleep takes about 3 s. The first visit after a restart is slower because Java hasn't compiled the login code yet; after
 that every thaw is fast. Each Blink uses 1.4 MB; the proxy itself stays awake.)
 
 Setup, per backend server:
@@ -139,7 +139,7 @@ Same machine, same Paper 26.3 server, measured October 2026.
 | Join on a sleeping server | never gets in (if it did: a 13 s cold start) | **0.1 to 0.4 s** (thaw), 4.4 s cold |
 | Memory of the proxy | 5.7 MB, 10 threads | **1.5 MB**, 2 threads |
 | Program | 3.9 MB + glibc | **1.6 MB**, one static file |
-| Sleeping server | stopped (0 MB, cold start) or frozen with all its memory (1 to 3 GB) | frozen in **0.19 GB**, stopped after a day |
+| Sleeping server | stopped (0 MB, cold start) or frozen with all its memory (1 to 3 GB) | **7 MB** after 10 minutes frozen |
 | Saves before sleeping | no | yes, `save-all` and waits for it |
 | Stop while asleep | Ctrl+C never reaches a frozen server; systemd kills it after its timeout | thaws, saves and stops in 1 to 2 s |
 | Players' real IPs | manual setup on both sides | automatic (PROXY protocol) |
@@ -280,13 +280,23 @@ So the fast path does not start at all. lazymc can freeze the server (`SIGSTOP`)
 (`SIGCONT`). On its own that wakes instantly but keeps all memory, which defeats the point. Blink
 adds:
 
-* **Memory out of the way.** A few seconds after a freeze, Blink writes to its service's cgroup file
-  `memory.reclaim` (the service lets it, with one `chown` before it starts). The kernel moves the heap into **zswap** and the coldest pages to a swap file.
-  With lz4 a server went from 3.0 GB to 0.9 GB; zstd compresses better (3.9:1 instead of 2.7:1) and
-  still wakes in 0.3 s, so Blink uses zstd.
+* **Memory out of the way, in two steps.** A few seconds after a freeze, Blink writes to its
+  service's cgroup file `memory.reclaim` (the service lets it, with one `chown` before it starts).
+  The kernel compresses the heap into **zswap** with lz4: about 0.3 GB stays in RAM and a join is
+  back in the world in **0.5 to 0.9 s**. After 10 minutes frozen (`deep_sleep_after`), Blink closes
+  zswap for its cgroup and reclaims a few more rounds: everything goes to the swap file and **7 MB**
+  stays in RAM (measured on the live server: 522 MB to 7 MB in 5 seconds). Waking from there takes
+  about 3 s, because the server reads its memory back from disk.
+* **lz4, not zstd.** zstd compresses better (3.9:1 against 2.7:1), but unpacking is slower: a join
+  took 0.8 to 1.1 s with zstd and 0.5 to 0.9 s with lz4. Since a long sleep goes to disk anyway, the
+  faster one wins.
+* **What we tried and dropped.** Reading the memory back ahead of time (on a server list ping, or
+  in parallel threads on a thaw) pulled back 1.2 GB the server didn't need and made joins slower.
+  Keeping 300 to 500 MB "hot" in RAM didn't make a join faster: half of the wake time is the thaw
+  itself (0.3 to 0.5 s without moving any memory at all).
 * **A small heap, and no periodic GC.** The heap starts at 256 MB instead of the maximum
   (`-Xms256M -Xmx8G`) and gives memory back after collections, so a quiet server is small when it
-  freezes: **0.19 to 0.25 GB** frozen. We also tried a GC every 15 seconds of quiet
+  freezes. We also tried a GC every 15 seconds of quiet
   (`G1PeriodicGCInterval`): it made a frozen server only a few MB smaller, but right after a thaw
   it fired at once and pulled the whole heap back into RAM, so a join took 3 to 5 seconds instead
   of under one. It's gone.
@@ -363,7 +373,7 @@ Paper. Without it every player shows up as 127.0.0.1 and IP bans don't work.
 
 | Memory | Before Blink | Awake, empty | Frozen |
 |---|---|---|---|
-| Minecraft service in RAM | 8 GB (AlwaysPreTouch) | 1.2 GB | **0.19 GB** (compressed) |
+| Minecraft service in RAM | 8 GB (AlwaysPreTouch) | 1.2 GB | 0.3 GB, then **7 MB** after 10 minutes |
 | Blink | | 1.5 MB | 1.5 MB |
 | BlueMap web server (optional) | | 73 MB | 73 MB |
 
@@ -382,7 +392,7 @@ regions. `tools/benchmark.sh` does the full run.
 | Awake, 0 players | 1.8 GB |
 | Awake, 1 / 2 / 4 players | 2.1 / 2.6 / 2.8 GB |
 | Frozen right after a 4 player session (saved first) | 0.6 GB in RAM, 2.7 GB moved out |
-| Frozen after a quiet moment (live server, Blink 2) | 0.19 GB in RAM |
+| Frozen, after 10 minutes (live server) | 7 MB in RAM |
 | Wake up after the 4 player session | 0.3 s |
 
 ## 5. What we learned the hard way
@@ -449,7 +459,7 @@ What it does, step by step:
 3. Downloads `blink` (checksum checked) to `/opt/blinkmc`.
 4. Writes `blink.toml` in your server folder. The protocol version and your MOTD are read from your
    server. `server.properties` is kept as `server.properties.before-blink`.
-5. Sets up a swap file (if you have none), zswap with zstd, and two sysctls.
+5. Sets up a swap file (if you have none), zswap with lz4, and two sysctls.
 6. Installs and starts the `minecraft` service.
 
 Running it again updates Blink (and Blink 1 installs are cleaned up).
