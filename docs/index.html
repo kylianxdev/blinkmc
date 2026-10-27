@@ -82,6 +82,14 @@ h2 { font-family: var(--pixel); font-size: clamp(18px, 3vw, 24px); line-height: 
 .bar-row .v { font-family: var(--mono); font-weight: 600; text-align: right; }
 .note { color: var(--muted); font-size: 13.5px; margin-top: 16px; }
 
+.vs-head, .vs-row { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 14px; align-items: center; padding: 11px 0; }
+.vs-head { padding-top: 0; }
+.vs-head .tag { font-family: var(--pixel); font-size: 10px; padding: 6px 8px; justify-self: start; }
+.vs-row { border-top: 1px dashed var(--line); font-size: 15px; }
+.vs-row .lbl { color: var(--muted); }
+.vs-row .bad { color: #ff9b9b; }
+.vs-row .good { color: var(--green2); font-weight: 700; }
+
 /* steps */
 .steps { counter-reset: s; display: grid; gap: 16px; }
 .step { display: grid; grid-template-columns: 56px 1fr; gap: 18px; background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
@@ -109,6 +117,9 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
 .dirt { height: 28px; background: repeating-linear-gradient(90deg, #79553a 0 16px, #6b4a32 16px 32px); }
 
 @media (max-width: 860px) {
+  .vs-head, .vs-row { grid-template-columns: 1fr 1fr; }
+  .vs-row .lbl, .vs-head span:first-child { grid-column: 1 / -1; }
+  .vs-head span:first-child { display: none; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .states { grid-template-columns: 1fr; }
   .bar-row { grid-template-columns: 1fr 64px; }
@@ -128,6 +139,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
       <div class="links">
         <a href="#how">How it works</a>
         <a href="#numbers">Numbers</a>
+        <a href="#vs">vs lazymc</a>
         <a href="#install">Install</a>
         <a class="gh" href="https://github.com/kylianxdev/blinkmc">GitHub</a>
       </div>
@@ -148,19 +160,19 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
   <div class="stats">
     <div class="stat"><b>0.1 s</b><span>until a sleeping server takes the join</span></div>
     <div class="stat"><b>4.4 s</b><span>cold start of Paper, down from 11.5 s</span></div>
-    <div class="stat"><b>-92%</b><span>RAM of a sleeping server: 0.26 GB instead of 3 GB</span></div>
-    <div class="stat"><b>0</b><span>mods, forks of Paper or client changes</span></div>
+    <div class="stat"><b>-94%</b><span>RAM of a sleeping server: 0.19 GB instead of 3 GB</span></div>
+    <div class="stat"><b>1.5 MB</b><span>RAM for Blink itself, one small program, no mods</span></div>
   </div>
 
   <section id="how">
     <div class="kicker">HOW IT WORKS</div>
     <h2>Three states, one port</h2>
-    <p class="sub">A small proxy (lazymc) owns the public port. Players never notice it: the server list, the MOTD and the icon always answer, and a join is simply let through as soon as the server is there.</p>
+    <p class="sub">Blink, one small program (1.5 MB of RAM), owns the public port. Players never notice it: the server list, the MOTD and the icon always answer, and a join is simply let through as soon as the server is there.</p>
     <div class="states">
       <div class="state">
         <span class="tag t-awake">AWAKE</span>
         <h3>Playing</h3>
-        <p>A normal Paper server. lazymc only relays the connection. When everyone left, the heap shrinks and the world stops ticking.</p>
+        <p>A normal Paper server. Blink only passes on the connection, with the players' real IPs. When everyone left, the heap shrinks and the world stops ticking.</p>
         <div class="num">same TPS, same plugins</div>
       </div>
       <div class="state">
@@ -191,14 +203,32 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     </div>
   </section>
 
+  <section id="vs">
+    <div class="kicker">BLINK VS LAZYMC</div>
+    <h2>Same idea, smaller and faster</h2>
+    <p class="sub">Measured on the same machine with the same Paper 26.3 server. Blink is built on lazymc; lazymc 0.2.11 is the latest release.</p>
+    <div class="chart">
+      <div class="vs-head"><span></span><span class="tag t-cold" style="color:#0b1026">lazymc 0.2.11</span><span class="tag t-awake" style="color:#0b1026">Blink 2</span></div>
+      <div class="vs-row"><span class="lbl">Join on a sleeping server</span><span class="bad">never gets in: held 25 s, then kicked</span><span class="good">0.1 to 0.4 s</span></div>
+      <div class="vs-row"><span class="lbl">RAM of the sleeping server</span><span class="bad">all of it (1 to 3 GB) when frozen</span><span class="good">0.19 GB</span></div>
+      <div class="vs-row"><span class="lbl">RAM of the proxy</span><span class="bad">5.7 MB, 10 threads</span><span class="good">1.5 MB, 2 threads</span></div>
+      <div class="vs-row"><span class="lbl">Program</span><span class="bad">3.9 MB + glibc</span><span class="good">1.6 MB, one file</span></div>
+      <div class="vs-row"><span class="lbl">Saves before sleeping</span><span class="bad">no</span><span class="good">yes</span></div>
+      <div class="vs-row"><span class="lbl">Stop while asleep</span><span class="bad">hangs until systemd kills it</span><span class="good">saves and stops in 1 to 2 s</span></div>
+      <div class="vs-row"><span class="lbl">Players' real IPs</span><span class="bad">manual setup</span><span class="good">automatic</span></div>
+      <div class="vs-row"><span class="lbl">Fast Paper start</span><span class="bad">no (13 s)</span><span class="good">4.4 s, built in</span></div>
+    </div>
+  </section>
+
   <section>
     <div class="kicker">WHAT MADE IT FAST</div>
-    <h2>Four tricks</h2>
+    <h2>Five tricks</h2>
     <div class="steps">
       <div class="step"><div><h3>Freeze instead of stop</h3><p>A paused JVM keeps all its state, so waking it up is instant. Blink first lets the heap shrink, then pushes the paused server's memory into zswap (zstd) and swap: 0.3 GB instead of 3 GB. Paper's watchdog is told not to panic about the time it was asleep.</p></div></div>
       <div class="step"><div><h3>Start Paper without paperclip</h3><p>Paper's launcher loads the server in its own class loader, which Java's AOT cache cannot store. Blink reads the class path from <code>paper.jar</code> and starts <code>org.bukkit.craftbukkit.Main</code> directly.</p></div></div>
       <div class="step"><div><h3>Java's AOT cache with streamable objects</h3><p>A training run records what Paper loads, links and runs. On Java 25 Minecraft's method type table is too big for the cache. Java 26's streamable AOT objects make the full 230 MB cache fit.</p></div></div>
-      <div class="step"><div><h3>A faster lazymc</h3><p>Fixes for detecting current Paper versions, status checks every 50 ms while waking, no pointless polling of a frozen server and a clean, saving shutdown even while frozen.</p></div></div>
+      <div class="step"><div><h3>One tiny program</h3><p>Blink is built on lazymc, fixed for current Paper and rebuilt to be small: 1.5 MB of RAM instead of 5.7 MB, 2 threads instead of 10, one static 1.6 MB file. It saves the world before every freeze, moves the frozen server's memory out of RAM itself, and still passes about 1 GB/s of player traffic on one thread.</p></div></div>
+      <div class="step"><div><h3>Deep sleep</h3><p>After a day frozen, Blink stops the server completely. Then only Blink's 1.5 MB is left, and the next join is a 4.4 s cold start.</p></div></div>
     </div>
   </section>
 
@@ -211,7 +241,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
       <button class="btn copy" id="copy" type="button">Copy</button>
     </div>
     <div class="steps" style="margin-top:22px">
-      <div class="step"><div><h3>It sets everything up</h3><p>Java 26 if you don't have it, the patched lazymc, a fast <code>start.sh</code>, swap and zswap, and a systemd service. Your MOTD, version and whitelist are read from your server. Your own files are kept and <code>--uninstall</code> puts them back.</p></div></div>
+      <div class="step"><div><h3>It sets everything up</h3><p>Java 26 if you don't have it, Blink, swap and zswap, and a systemd service. Your MOTD and version are read from your server. Your own files stay as they are, and <code>--uninstall</code> undoes it all.</p></div></div>
       <div class="step"><div><h3>Play</h3><p>Players join on the same address as always. 30 seconds after the last player leaves, the server saves and freezes. The next join wakes it up.</p></div></div>
       <div class="step"><div><h3>Tweak it (optional)</h3>
 <pre><span class="c"># options go after "bash -s --"</span>
@@ -224,19 +254,20 @@ curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh 
     <div class="kicker">FAQ</div>
     <h2>Questions</h2>
     <details><summary>Do players need to install anything?</summary><p>No. It is a normal Minecraft server for them. The only thing they may notice is a different MOTD while the server sleeps.</p></details>
-    <details><summary>Can bots keep my server awake?</summary><p>Only players on <code>whitelist.json</code> can wake the server. Scanners try to join public servers all day; without this setting each of them would wake yours.</p></details>
+    <details><summary>Do I need a whitelist?</summary><p>No. Without a whitelist anyone can wake the server, also new players. A bot that wakes it only keeps it awake until the next freeze, 30 seconds later. With the whitelist on, only whitelisted players can wake it. Want to keep bots out without a whitelist? Set <code>wake_known_players = true</code>: then only players who joined before can.</p></details>
+    <details><summary>Does it work for big servers?</summary><p>Yes. One thread passes about 1 GB/s of player traffic, enough for well over a thousand players; <code>--threads 4</code> doubles that for 56 kB of extra memory. A big server is rarely empty, so it simply stays awake.</p></details>
     <details><summary>Is a frozen server safe for my world?</summary><p>Blink makes Paper save the world right before it freezes, and checks that nobody joined meanwhile. Stopping the service thaws the server first and lets Paper save and shut down normally.</p></details>
     <details><summary>What about plugins, dynmap or BlueMap?</summary><p>Plugins freeze and wake with the server. BlueMap's web server can run on its own, so the web map stays online while the server sleeps. The write-up shows how.</p></details>
     <details><summary>Can I undo it?</summary><p>Yes: run the same command with <code>bash -s -- --uninstall</code>. Your own <code>start.sh</code> and <code>server.properties</code> come back.</p></details>
-    <details><summary>Does it work with Spigot, Fabric or Forge?</summary><p>The sleeping part works with any server lazymc supports. The fast cold start is written for Paper and its forks (Purpur, Folia, Leaf), because it reads Paper's launcher lists.</p></details>
+    <details><summary>Does it work with Spigot, Fabric or Forge?</summary><p>The sleeping part works with any Java server: set <code>command</code> in <code>blink.toml</code>. The fast cold start is written for Paper and its forks (Purpur, Folia, Leaf), because it reads Paper's launcher lists.</p></details>
   </section>
 </div>
 
 <footer>
   <div class="grass"></div><div class="dirt"></div>
   <div class="wrap" style="padding-top:30px">
-    <div><b style="color:var(--text)">Blink</b> by Kylian de Groot. MIT licensed. Not affiliated with Mojang, Microsoft or PaperMC.</div>
-    <div><a href="https://github.com/kylianxdev/blinkmc">GitHub</a> &nbsp; <a href="https://github.com/kylianxdev/blinkmc#readme">Write-up</a> &nbsp; <a href="https://github.com/kylianxdev/lazymc/tree/blink">lazymc fork</a></div>
+    <div><b style="color:var(--text)">Blink</b> by Kylian de Groot, built on <a href="https://github.com/timvisee/lazymc">lazymc</a> by Tim Visée. GPL-3.0. Not affiliated with Mojang, Microsoft or PaperMC.</div>
+    <div><a href="https://github.com/kylianxdev/blinkmc">GitHub</a> &nbsp; <a href="https://github.com/kylianxdev/blinkmc#readme">Write-up</a> </div>
   </div>
 </footer>
 
