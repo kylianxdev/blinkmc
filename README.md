@@ -183,7 +183,10 @@ adds:
   (`-Xms1G -Xmx8G`), and `-XX:G1PeriodicGCInterval=60000` lets G1 collect and give memory back
   when the server is quiet. Together with Minecraft's own `pause-when-empty-seconds=60` an empty
   server drops from 3.1 GB to 1.2 GB before it is frozen, and to **0.3 GB** after.
-* **Freeze after 5 minutes** instead of 30. With a 0.1 s wake up there is no reason to wait.
+* **Save, then freeze after 30 seconds.** With a 0.3 s wake up there is no reason to wait long.
+  Minecraft does not save when it pauses an empty server, so our lazymc gets a `before_freeze`
+  hook: it runs `save-all`, waits for "Saved the game", checks that nobody joined meanwhile, and
+  only then freezes. A reboot of the machine while the server is frozen loses nothing.
 * **No read ahead from swap** (`vm.page-cluster=0`). With zswap, reading 8 pages per fault only adds
   latency. Together with the next point this took a wake up from 1.2 s to 0.1 s.
 * **lazymc polls every 50 ms while waking**, instead of every 2 s, and does not poll a frozen server
@@ -236,6 +239,21 @@ is lazymc `master` with #107 and the patches above.
 Tick performance is not affected. The AOT cache only changes how classes get loaded; hot code is JIT
 compiled as before. A frozen server uses no CPU at all.
 
+### Benchmark with simulated players
+
+On a copy of the same world (no plugins, 6 GB heap), players were simulated with `/forceload`: each
+"player" loads the 25 x 25 chunks of view distance 12, around one of the four most built up
+regions. `tools/benchmark.sh` does the full run.
+
+| | Value |
+|---|---|
+| Cold start (3 runs) | 4.4, 4.5, 4.8 s (Paper: 3.9 to 4.2 s) |
+| Awake, 0 players | 1.8 GB |
+| Awake, 1 / 2 / 4 players | 2.1 / 2.6 / 2.8 GB |
+| Frozen right after a 4 player session (saved first) | 0.6 GB in RAM, 2.7 GB moved out |
+| Frozen after a quiet hour (live server) | 0.26 GB in RAM |
+| Wake up after the 4 player session | 0.3 s |
+
 ## 5. What we learned the hard way
 
 * **Bots wake servers.** In the first days the server woke up about ten times a day, every time for
@@ -273,14 +291,14 @@ curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh 
 Options go after `bash -s --`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash -s -- --heap 6G --sleep 10
+curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash -s -- --heap 6G --sleep 120
 ```
 
 | Option | Default | |
 |---|---|---|
 | `--dir PATH` | current folder | server folder |
 | `--heap SIZE` | 60% of RAM, at most 8G | maximum Java heap |
-| `--sleep MINUTES` | 5 | freeze after this many minutes without players |
+| `--sleep SECONDS` | 30 | save and freeze this many seconds after the last player left |
 | `--name NAME` | minecraft | systemd service name (use another one per server) |
 | `--swap SIZE` | heap + 2G | swap file, only when there is no swap yet |
 | `--uninstall` | | undo everything for this server |

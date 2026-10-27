@@ -1,4 +1,4 @@
-# Blink: the server freezes when nobody played for 5 minutes and wakes up when someone joins.
+# Blink: the server saves and freezes 30 seconds after the last player left, and wakes up when someone joins.
 # install.sh writes this file for you; this copy is for reference.
 # The server list (MOTD, icon, version) keeps working while it sleeps.
 [public]
@@ -17,6 +17,8 @@ command = "./start.sh"
 freeze_process = true
 # start right away (and freeze after sleep_after), so even the first join after a reboot is fast
 wake_on_start = true
+# save the world first, so nothing is lost if the machine reboots while the server is frozen
+before_freeze = "/opt/blinkmc/blink-before-freeze.sh minecraft minecraft"
 start_timeout = 300
 stop_timeout = 150
 # only players on whitelist.json can wake the server. Keep this on: scanners and bots try to join
@@ -24,8 +26,8 @@ stop_timeout = 150
 wake_whitelist = true
 
 [time]
-sleep_after = 300
-minimum_online_time = 60
+sleep_after = 30
+minimum_online_time = 30
 
 [motd]
 sleeping = "§a§lMy server\n§7💤 sleeping §8• §ajoin to start it"

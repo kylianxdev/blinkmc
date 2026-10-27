@@ -1,7 +1,7 @@
 Blink patch for lazymc, on top of master 204324f (July 2026).
 Contains pull request #107 (status decoding for Paper) and Blink's own changes:
-fast status polling while waking, no polling of a frozen server, graceful stop of a frozen server.
-Apply: git checkout 204324f && git apply lazymc-blink.patch
+fast status polling while waking, no polling of a frozen server, graceful stop of a frozen server,
+and a before_freeze hook. Apply: git checkout 204324f && git apply lazymc-blink.patch
 
 diff --git a/Cargo.lock b/Cargo.lock
 index 00cdf22..3bb7808 100644
@@ -38,6 +38,23 @@ index 4a80820..de58b90 100644
  named-binary-tag = "0.6"
  nix = { version = "0.28", features = ["process", "signal"] }
  notify = "4.0"
+diff --git a/src/config.rs b/src/config.rs
+index ee40aaf..a4611ce 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -179,6 +179,12 @@ pub struct Server {
+     #[serde(default = "bool_true")]
+     pub freeze_process: bool,
+ 
++    /// Command to run (and wait for, at most 60 seconds) right before the server is frozen, in the
++    /// server directory. For example to make the server save its world. If a player joins while it
++    /// runs, the server is not frozen.
++    #[serde(default)]
++    pub before_freeze: Option<String>,
++
+     /// Immediately wake server when starting lazymc.
+     #[serde(default)]
+     pub wake_on_start: bool,
 diff --git a/src/monitor.rs b/src/monitor.rs
 index f82d509..88c3404 100644
 --- a/src/monitor.rs
@@ -78,7 +95,7 @@ index f82d509..88c3404 100644
          // Poll server state and update internal status
          trace!(target: "lazymc::monitor", "Fetching status for {} ... ", addr);
 diff --git a/src/server.rs b/src/server.rs
-index cb4b1f1..3693756 100644
+index cb4b1f1..adfa221 100644
 --- a/src/server.rs
 +++ b/src/server.rs
 @@ -52,7 +52,7 @@ pub struct Server {
@@ -107,6 +124,49 @@ index cb4b1f1..3693756 100644
      pub async fn stop(&self, config: &Config) -> bool {
          // Try to freeze through signal
          #[cfg(unix)]
+@@ -636,6 +646,19 @@ async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
+         }
+     };
+ 
++    // Before freezing: run the hook (save the world, for example), then make sure nobody joined
++    // while it ran. The monitor waits for us, so ask the server for a fresh status first.
++    if let Some(ref command) = config.server.before_freeze {
++        run_before_freeze(config, command).await;
++        if let Ok(Some(status)) = crate::monitor::poll_server(config, server, config.server.address).await {
++            server.update_status(config, Some(status)).await;
++        }
++        if !server.should_sleep(config).await {
++            info!(target: "lazymc", "Not freezing, someone joined");
++            return true;
++        }
++    }
++
+     if !os::freeze(pid) {
+         error!(target: "lazymc", "Failed to send freeze signal to server process.");
+     }
+@@ -650,6 +673,22 @@ async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
+     true
+ }
+ 
++/// Run the before_freeze command in the server directory, at most 60 seconds.
++#[cfg(unix)]
++async fn run_before_freeze(config: &Config, command: &str) {
++    let mut cmd = tokio::process::Command::new("sh");
++    cmd.arg("-c").arg(command);
++    if let Some(dir) = ConfigServer::server_directory(config) {
++        cmd.current_dir(dir);
++    }
++    match tokio::time::timeout(Duration::from_secs(60), cmd.status()).await {
++        Ok(Ok(status)) if status.success() => {}
++        Ok(Ok(status)) => warn!(target: "lazymc", "before_freeze command failed ({})", status),
++        Ok(Err(err)) => warn!(target: "lazymc", "Could not run before_freeze command: {}", err),
++        Err(_) => warn!(target: "lazymc", "before_freeze command took longer than 60 seconds"),
++    }
++}
++
+ /// Unfreeze server by sending SIGCONT signal.
+ ///
+ /// Only available on Unix.
 diff --git a/src/service/signal.rs b/src/service/signal.rs
 index 6512da0..ef7732e 100644
 --- a/src/service/signal.rs

@@ -9,7 +9,7 @@
 #   --heap SIZE      maximum Java heap, e.g. 6G (default: 60% of the RAM, at most 8G)
 #   --swap SIZE      size of the swap file when there is none yet (default: heap + 2G)
 #   --name NAME      name of the systemd service (default: minecraft)
-#   --sleep MINUTES  freeze after this many minutes without players (default: 5)
+#   --sleep SECONDS  freeze after this many seconds without players (default: 30)
 #   --uninstall      undo everything for this server (keeps swap and zswap)
 #
 # What it does: installs Java 26 if needed, puts the patched lazymc and the freeze helper in
@@ -22,7 +22,7 @@ REF=${BLINK_REF:-main}
 RAW="https://raw.githubusercontent.com/$REPO/$REF"
 OPT=/opt/blinkmc
 
-DIR=$PWD HEAP="" SWAP="" NAME=minecraft SLEEP=5 UNINSTALL=0
+DIR=$PWD HEAP="" SWAP="" NAME=minecraft SLEEP=30 UNINSTALL=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --dir) DIR=$2; shift ;;
@@ -131,7 +131,8 @@ curl -fsSL "https://github.com/$REPO/releases/latest/download/lazymc-blink-linux
 install -m 755 "$tmp/lazymc-blink-linux-x64" "$OPT/lazymc"
 curl -fsSL "$RAW/start.sh" -o "$OPT/start.sh"
 curl -fsSL "$RAW/setup/blink-freeze-helper.sh" -o "$OPT/blink-freeze-helper.sh"
-chmod 755 "$OPT/blink-freeze-helper.sh"
+curl -fsSL "$RAW/setup/blink-before-freeze.sh" -o "$OPT/blink-before-freeze.sh"
+chmod 755 "$OPT/blink-freeze-helper.sh" "$OPT/blink-before-freeze.sh"
 
 # ---------------------------------------------------------------- server folder
 step "Setting up the server folder"
@@ -154,7 +155,7 @@ echo "  unpacking Paper to read its version"
 sudo -u "$OWNER" "$JAVA" -Dpaperclip.patchonly=true -jar "$JAR" >/dev/null 2>&1 || die "could not unpack $JAR"
 INNER=$((PORT + 1)); while ss -ltnH "sport = :$INNER" | grep -q .; do INNER=$((INNER + 1)); done
 
-JAR="$JAR" PORT=$PORT INNER=$INNER SLEEP=$SLEEP python3 > lazymc.toml <<'P'
+JAR="$JAR" PORT=$PORT INNER=$INNER SLEEP=$SLEEP NAME=$NAME OPT=$OPT python3 > lazymc.toml <<'P'
 import json, os, re, zipfile
 outer = zipfile.ZipFile(os.environ["JAR"])
 inner = outer.read("META-INF/versions.list").decode().split("\t")[2].strip()
@@ -182,7 +183,7 @@ def toml(s):
 
 motd = unescape(props.get("motd", "A Minecraft Server")).split("\n")[0] or "A Minecraft Server"
 whitelist = props.get("white-list", "false").strip() == "true"
-print(f"""# Blink: freezes the server after {os.environ['SLEEP']} minutes without players, wakes it up when someone joins.
+print(f"""# Blink: freezes the server after {os.environ['SLEEP']} seconds without players, wakes it up when someone joins.
 # The server list (MOTD, icon) keeps working while it sleeps. Docs: https://github.com/kylianxdev/blinkmc
 [public]
 address = "0.0.0.0:{os.environ['PORT']}"
@@ -196,14 +197,16 @@ directory = "."
 command = "./start.sh"
 freeze_process = true
 wake_on_start = true
+# save the world first, so nothing is lost if the machine reboots while the server is frozen
+before_freeze = "{os.environ['OPT']}/blink-before-freeze.sh {os.environ['NAME']} {os.environ['NAME']}"
 start_timeout = 300
 stop_timeout = 150
 # only players on whitelist.json can wake the server (bots try to join public servers all day)
 wake_whitelist = {'true' if whitelist else 'false'}
 
 [time]
-sleep_after = {int(os.environ['SLEEP']) * 60}
-minimum_online_time = 60
+sleep_after = {int(os.environ['SLEEP'])}
+minimum_online_time = {min(int(os.environ['SLEEP']), 60)}
 
 [motd]
 sleeping = {toml(motd + chr(10) + "§7💤 sleeping §8• §ajoin to wake it up")}
@@ -314,8 +317,8 @@ else
 fi
 cat <<D
 
-  Players join on port $PORT as always. After $SLEEP minutes without players the server
-  freezes; the next join wakes it up in a fraction of a second.
+  Players join on port $PORT as always. $SLEEP seconds after the last player leaves, the server
+  saves and freezes; the next join wakes it up in a fraction of a second.
 
   Console:     sudo -u $OWNER tmux -L $NAME attach -t $NAME     (leave with Ctrl+B, then D)
   Stop/start:  sudo systemctl stop $NAME / sudo systemctl start $NAME
