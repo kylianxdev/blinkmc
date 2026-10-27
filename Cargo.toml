@@ -1,6 +1,6 @@
 [package]
 name = "blink"
-version = "2.0.0"
+version = "2.1.0"
 authors = ["Kylian de Groot", "Tim Visee (lazymc)"]
 license = "GPL-3.0"
 readme = "README.md"
