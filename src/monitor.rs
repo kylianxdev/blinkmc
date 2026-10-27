@@ -20,7 +20,10 @@ use crate::proxy;
 use crate::server::{Server, State};
 
 /// Monitor ping inverval in seconds.
-const MONITOR_POLL_INTERVAL: Duration = Duration::from_secs(2);
+const MONITOR_POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Monitor ping interval while the server is starting.
+const MONITOR_POLL_INTERVAL_STARTING: Duration = Duration::from_millis(50);
 
 /// Status request timeout in seconds.
 const STATUS_TIMEOUT: u64 = 20;
@@ -33,10 +36,19 @@ pub async fn monitor_server(config: Arc<Config>, server: Arc<Server>) {
     // Server address
     let addr = config.server.address;
 
-    let mut poll_interval = time::interval(MONITOR_POLL_INTERVAL);
-
     loop {
-        poll_interval.tick().await;
+        // Poll fast while starting (a frozen server is back within milliseconds)
+        time::sleep(if server.state() == State::Starting {
+            MONITOR_POLL_INTERVAL_STARTING
+        } else {
+            MONITOR_POLL_INTERVAL
+        })
+        .await;
+
+        // A frozen server can't answer, polling it would only wait for the timeout
+        if config.server.freeze_process && server.state() == State::Stopped && server.pid.lock().await.is_some() {
+            continue;
+        }
 
         // Poll server state and update internal status
         trace!(target: "lazymc::monitor", "Fetching status for {} ... ", addr);

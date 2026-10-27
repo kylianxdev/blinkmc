@@ -52,7 +52,7 @@ pub struct Server {
     /// Server process PID.
     ///
     /// Set if a server process is running.
-    pid: Mutex<Option<u32>>,
+    pub pid: Mutex<Option<u32>>,
 
     /// Last known server status.
     ///
@@ -245,6 +245,16 @@ impl Server {
     ///
     /// This will attempt to stop the server with all available methods.
     #[allow(unused_variables)]
+    /// Stop the server process for real, also when it is frozen: thaw it, then ask it to stop
+    /// gracefully so it saves the world.
+    #[cfg(unix)]
+    pub async fn stop_for_real(&self, config: &Config) -> bool {
+        if let Some(pid) = *self.pid.lock().await {
+            crate::os::unfreeze(pid);
+        }
+        stop_server_signal(config, self).await
+    }
+
     pub async fn stop(&self, config: &Config) -> bool {
         // Try to freeze through signal
         #[cfg(unix)]

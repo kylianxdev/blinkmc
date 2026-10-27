@@ -10,18 +10,21 @@ pub async fn service(config: Arc<Config>, server: Arc<Server>) {
         // Wait for SIGTERM/SIGINT signal
         tokio::signal::ctrl_c().await.unwrap();
 
-        // Quit if stopped
-        if server.state() == server::State::Stopped {
+        // Quit if there is no server process (a frozen server still has one)
+        if server.pid.lock().await.is_none() {
             quit();
         }
 
-        // Try to stop server
-        let stopping = server.stop(&config).await;
-
-        // If not stopping, maybe due to failure, just quit
-        if !stopping {
+        // Stop the server process for real, even when it is frozen, so it saves the world
+        if !server.stop_for_real(&config).await {
             quit();
         }
+
+        // Quit once the process is gone, so a service manager can stop lazymc with one signal
+        while server.pid.lock().await.is_some() {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+        quit();
     }
 }
 
