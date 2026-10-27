@@ -494,12 +494,17 @@ impl Default for Rcon {
 pub struct Advanced {
     /// Rewrite server.properties.
     pub rewrite_server_properties: bool,
+
+    /// Threads for passing on the players' traffic. 1 uses the least memory and is plenty for a
+    /// normal server; give a server with hundreds of players a few more.
+    pub threads: usize,
 }
 
 impl Default for Advanced {
     fn default() -> Self {
         Self {
             rewrite_server_properties: true,
+            threads: 1,
         }
     }
 }

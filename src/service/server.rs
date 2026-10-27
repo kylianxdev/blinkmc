@@ -17,9 +17,25 @@ use crate::util::error::{quit_error, ErrorHints};
 ///
 /// Main entrypoint to start all server/status/proxy logic.
 ///
-/// Spawns a tokio runtime to complete all work on.
-#[tokio::main(flavor = "current_thread")]
-pub async fn service(config: Arc<Config>) -> Result<(), ()> {
+/// Spawns a tokio runtime to complete all work on: one thread by default, more for big servers
+/// (advanced.threads).
+pub fn service(config: Arc<Config>) -> Result<(), ()> {
+    let threads = config.advanced.threads.max(1);
+    let mut runtime = if threads == 1 {
+        tokio::runtime::Builder::new_current_thread()
+    } else {
+        let mut builder = tokio::runtime::Builder::new_multi_thread();
+        builder.worker_threads(threads);
+        builder
+    };
+    runtime
+        .enable_all()
+        .build()
+        .expect("failed to start the runtime")
+        .block_on(run(config))
+}
+
+async fn run(config: Arc<Config>) -> Result<(), ()> {
     // Load server state
     let server = Arc::new(Server::default());
 
