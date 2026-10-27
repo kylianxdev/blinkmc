@@ -1,0 +1,15 @@
+[Unit]
+Description=BlueMap web server (separate from Minecraft, stays up while the server sleeps)
+After=network-online.target
+
+[Service]
+User=minecraft
+WorkingDirectory=/opt/bluemap-web
+# -w: only the web server, no rendering (the plugin in Paper still renders)
+ExecStart=/usr/bin/java -Xmx160m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -jar bluemap-5.29-cli.jar -w
+Nice=5
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

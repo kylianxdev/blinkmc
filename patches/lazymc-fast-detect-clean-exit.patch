@@ -1,0 +1,30 @@
+diff --git a/src/monitor.rs b/src/monitor.rs
+index f82d509..3eed169 100644
+--- a/src/monitor.rs
++++ b/src/monitor.rs
+@@ -20,7 +20,7 @@ use crate::proxy;
+ use crate::server::{Server, State};
+ 
+ /// Monitor ping inverval in seconds.
+-const MONITOR_POLL_INTERVAL: Duration = Duration::from_secs(2);
++const MONITOR_POLL_INTERVAL: Duration = Duration::from_millis(500);
+ 
+ /// Status request timeout in seconds.
+ const STATUS_TIMEOUT: u64 = 20;
+diff --git a/src/service/signal.rs b/src/service/signal.rs
+index 6512da0..1cc3cd9 100644
+--- a/src/service/signal.rs
++++ b/src/service/signal.rs
+@@ -22,6 +22,12 @@ pub async fn service(config: Arc<Config>, server: Arc<Server>) {
+         if !stopping {
+             quit();
+         }
++
++        // Quit once the server has stopped, so a service manager can stop lazymc with one signal
++        while server.state() != server::State::Stopped {
++            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
++        }
++        quit();
+     }
+ }
+ 

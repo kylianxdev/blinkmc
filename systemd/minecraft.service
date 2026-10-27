@@ -1,0 +1,19 @@
+[Unit]
+Description=Minecraft Paper server (behind lazymc: sleeps when nobody plays)
+After=network-online.target bluemap-web.service
+Wants=network-online.target bluemap-web.service
+
+[Service]
+User=minecraft
+WorkingDirectory=/opt/minecraft
+# tmux, so you can still type in the console: tmux attach -t minecraft
+ExecStart=/usr/bin/tmux new-session -d -s minecraft /opt/lazymc/lazymc start -c /opt/minecraft/lazymc.toml
+# one Ctrl+C: lazymc stops Paper (which saves the world) and then quits (needs the patch)
+ExecStop=/usr/bin/tmux send-keys -t minecraft C-c
+ExecStop=/bin/bash -c 'while tmux has-session -t minecraft 2>/dev/null; do sleep 1; done'
+Type=forking
+RemainAfterExit=yes
+TimeoutStopSec=180
+
+[Install]
+WantedBy=multi-user.target

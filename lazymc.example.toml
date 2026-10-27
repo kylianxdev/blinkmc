@@ -1,0 +1,48 @@
+# lazymc: the server sleeps when nobody played for 30 minutes and wakes up when someone joins.
+# The server list (MOTD, icon, version) keeps working while it sleeps.
+[public]
+address = "0.0.0.0:25565"
+# shown while the server sleeps; check yours with: python3 tools/status-ping.py <host>
+version = "Paper 26.3"
+protocol = 777
+
+[server]
+# lazymc moves the real server here (it rewrites server-ip and server-port in server.properties)
+address = "127.0.0.1:25566"
+directory = "."
+command = "./start.sh"
+# really stop the JVM (frees its RAM) instead of pausing it with SIGSTOP
+freeze_process = false
+start_timeout = 300
+stop_timeout = 150
+# only players on whitelist.json can wake the server. Keep this on: scanners and bots try to join
+# public servers all day, and every attempt would otherwise start it for 30 minutes
+wake_whitelist = true
+
+[time]
+sleep_after = 1800
+minimum_online_time = 300
+
+[motd]
+sleeping = "§a§lMy server\n§7💤 sleeping §8• §ajoin to start it"
+starting = "§a§lMy server\n§e⌛ starting..."
+stopping = "§a§lMy server\n§7💤 going to sleep..."
+# while awake, show the MOTD of the server itself
+from_server = true
+
+[join]
+# hold: the client waits on "Joining world" until the server is up, then it is let through
+methods = ["hold", "kick"]
+
+[join.hold]
+timeout = 40
+
+[join.kick]
+starting = "§aThe server is starting!§r\n\n§7Try again in §e20 seconds§7."
+stopping = "§7The server is just going to sleep...§r\n\n§7Try again in §e20 seconds§7."
+
+[advanced]
+rewrite_server_properties = true
+
+[config]
+version = "0.2.11"
