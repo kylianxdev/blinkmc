@@ -1,6 +1,6 @@
 #!/bin/bash
 # Blink benchmark: cold starts, memory with simulated players, and freeze/wake for several freeze delays.
-# Runs against a Blink install (install.sh --name <service>) on a COPY of a real world, while nobody plays.
+# Runs against a Blink 2 install (install.sh --name <service>) on a COPY of a real world, while nobody plays.
 #
 #   tools/benchmark.sh <service> <server folder> <public port> <name on whitelist.json> > results.csv
 #
@@ -11,7 +11,7 @@ set -u
 SERVICE=$1 DIR=$2 PORT=$3 NAME=$4
 HERE=$(cd "$(dirname "$0")" && pwd)
 CG=/sys/fs/cgroup/system.slice/$SERVICE.service
-TOML=$DIR/lazymc.toml
+TOML=$DIR/blink.toml
 cp "$TOML" "$TOML.bench-backup"
 trap 'cp "$TOML.bench-backup" "$TOML"; rm -f "$TOML.bench-backup"; sudo systemctl restart "$SERVICE"' EXIT
 
@@ -38,7 +38,8 @@ restart() {     # restart the service, print wall seconds and Paper's seconds
 }
 wake() { python3 "$HERE/status-ping.py" "127.0.0.1:$PORT" --join --name "$NAME" | grep -o '[0-9.]* s' | grep -o '[0-9.]*'; }
 wait_frozen() { until [ "$(state)" = T ]; do sleep 0.5; done; }
-wait_reclaimed() { local s=$1; until sudo journalctl -u "blink-freeze-helper@$SERVICE" --since "@$s" -o cat | grep -q frozen; do sleep 1; done; }
+wait_reclaimed() { local n=$1; until [ "$(tmux -L "$SERVICE" capture-pane -p -t "$SERVICE" -S -2000 | grep -c "Frozen server's memory")" -gt "$n" ]; do sleep 1; done; }
+reclaims() { tmux -L "$SERVICE" capture-pane -p -t "$SERVICE" -S -2000 | grep -c "Frozen server's memory"; }
 
 # the "players": centers (in chunks) of the 4 biggest overworld region files
 mapfile -t CENTERS < <(find "$DIR/world" -path "*overworld*" -name "r.*.mca" -printf "%s %f\n" | sort -rn | head -4 |
@@ -80,9 +81,9 @@ for delay in 10 30 60 300; do
   restart >/dev/null
   for i in 1 2 3; do
     players add 4; sleep 45; players remove 4
-    s=$(date +%s); t0=$(date +%s.%N)
+    n=$(reclaims); t0=$(date +%s.%N)
     wait_frozen; froze=$(echo "$(date +%s.%N) - $t0" | bc)
-    wait_reclaimed "$s"
+    wait_reclaimed "$n"
     out "freeze_${delay}s,run $i seconds until frozen,$froze,s"
     out "freeze_${delay}s,run $i frozen in RAM,$(cg_mb),MB"
     sleep 20
