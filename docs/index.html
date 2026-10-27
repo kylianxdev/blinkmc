@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blink: a Minecraft server that wakes up in 0.1 seconds</title>
-<meta name="description" content="Blink makes your Minecraft Paper server sleep when nobody plays and wake up in 0.1 seconds when someone joins. It frees your RAM, keeps the server list working and needs no mods.">
-<meta name="keywords" content="minecraft server sleep, auto start minecraft server on join, lazymc, paper, fast startup, minecraft server idle, save ram minecraft server, java aot cache">
+<title>Blink: the RAM solution for Minecraft servers and BungeeCord networks</title>
+<meta name="description" content="Blink makes Minecraft Paper servers sleep when nobody plays and wake up in 0.1 seconds when someone joins. Frees your RAM, works for single servers and BungeeCord or Velocity networks, on Linux, macOS and Windows. No mods.">
+<meta name="keywords" content="minecraft server sleep, bungeecord ram, velocity network ram, auto start minecraft server on join, lazymc alternative, paper, fast startup, minecraft server idle, save ram minecraft server, java aot cache">
 <meta property="og:title" content="Blink: a Minecraft server that wakes up in 0.1 seconds">
 <meta property="og:description" content="Sleeps when nobody plays, wakes up in 0.1 s when someone joins. Stock Paper, no mods.">
 <meta property="og:image" content="https://kylianxdev.github.io/blinkmc/assets/social.png">
@@ -63,6 +63,85 @@ section { padding: 84px 0 0; }
 h2 { font-family: var(--pixel); font-size: clamp(18px, 3vw, 24px); line-height: 1.5; margin: 0 0 14px; }
 .kicker { color: var(--gold); font-family: var(--pixel); font-size: 11px; letter-spacing: 1px; margin-bottom: 14px; }
 .sub { color: var(--muted); max-width: 720px; margin: 0 0 34px; }
+
+
+/* works on */
+.works { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 16px; margin: 40px auto 0; color: var(--muted); font-size: 14px; }
+.works b { font-family: var(--pixel); font-size: 10px; color: var(--text); background: var(--bg2); border: 1px solid var(--line); padding: 8px 10px; border-radius: 6px; }
+.works i { width: 1px; height: 22px; background: var(--line); }
+
+/* demo */
+#demo { padding-top: 56px; }
+.demo { display: grid; grid-template-columns: 1.3fr 1fr; gap: 26px; align-items: center; }
+.mc-list { background: #0d0d0d url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32'><rect width='16' height='16' fill='%23251a10'/><rect x='16' y='16' width='16' height='16' fill='%23251a10'/><rect x='16' width='16' height='16' fill='%232c1f13'/><rect y='16' width='16' height='16' fill='%232c1f13'/></svg>"); border: 3px solid #000; padding: 18px; border-radius: 4px; }
+.mc-title { text-align: center; color: #fff; font-family: var(--pixel); font-size: 12px; margin-bottom: 14px; text-shadow: 2px 2px 0 #3f3f3f; }
+.mc-entry { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 8px; border: 2px solid #8b8b8b; background: rgba(0,0,0,.55); }
+.mc-entry img { width: 64px; height: 40px; image-rendering: pixelated; object-fit: contain; }
+.mc-name { color: #fff; font-family: var(--pixel); font-size: 11px; display: flex; justify-content: space-between; }
+.mc-motd { color: #aaa; font-family: var(--pixel); font-size: 9px; margin-top: 10px; line-height: 1.6; min-height: 14px; }
+.mc-players { color: #aaa; font-family: var(--pixel); font-size: 9px; align-self: start; margin-top: 18px; }
+.mc-ping { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; }
+.mc-ping i { width: 3px; background: #555; }
+.mc-ping i:nth-child(1) { height: 3px } .mc-ping i:nth-child(2) { height: 5px } .mc-ping i:nth-child(3) { height: 7px } .mc-ping i:nth-child(4) { height: 9px } .mc-ping i:nth-child(5) { height: 11px }
+.mc-ping.on i { background: #3ae25f; }
+.mc-btns { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.mc-btn { flex: 1; text-align: center; font-family: var(--pixel); font-size: 9px; color: #fff; padding: 10px 6px; background: #6f6f6f; border: 2px solid #000; box-shadow: inset 2px 2px 0 #a8a8a8, inset -2px -2px 0 #4a4a4a; white-space: nowrap; }
+.mc-btn.dim { color: #bbb; }
+.mc-btn.press { background: #7c88c8; }
+.demo-side { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+.demo-step { font-size: 19px; font-weight: 700; min-height: 58px; }
+.meter { height: 18px; background: #0e1533; border-radius: 4px; overflow: hidden; margin: 18px 0 8px; }
+.meter-fill { height: 100%; width: 6%; background: var(--blue); transition: width .9s cubic-bezier(.2,.7,.2,1), background .4s; }
+.meter-label { display: flex; justify-content: space-between; color: var(--muted); font-size: 14px; margin-top: 6px; }
+.meter-label b { color: var(--text); font-family: var(--mono); }
+
+/* use cases */
+.case { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: center; margin: 52px 0; }
+.case.flip .case-text { order: 2; }
+.case h3 { font-size: 26px; margin: 14px 0 10px; line-height: 1.25; }
+.case p { color: var(--muted); }
+.case ul { padding-left: 0; list-style: none; margin: 14px 0 0; }
+.case li { padding-left: 26px; position: relative; margin: 8px 0; }
+.case li::before { content: ""; position: absolute; left: 0; top: 7px; width: 12px; height: 12px; background: var(--green); border: 2px solid #000; }
+.case .tag { font-family: var(--pixel); font-size: 10px; padding: 6px 8px; color: #0b1026; display: inline-block; }
+.case-visual { background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+.day-bar { position: relative; height: 42px; background: #0e1533; border-radius: 6px; overflow: hidden; }
+.day-bar span { position: absolute; top: 0; bottom: 0; }
+.day-bar .a, .day-legend i.a { background: var(--green); }
+.day-bar .z, .day-legend i.z { background: repeating-linear-gradient(45deg, #24306b 0 8px, #1d2858 8px 16px); }
+.day-axis { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 8px; }
+.day-legend { margin-top: 16px; font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.day-legend i { width: 14px; height: 14px; display: inline-block; border-radius: 3px; }
+.tasks { font-size: 14.5px; }
+.task-head, .task { display: grid; grid-template-columns: 1fr 60px 80px; gap: 10px; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+.task-head { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; }
+.task span:not(:first-child) { text-align: right; font-family: var(--mono); }
+.task.hl { background: rgba(108,140,255,.12); border-radius: 6px; }
+.net { display: grid; justify-items: center; gap: 0; }
+.net-proxy { background: var(--gold); color: #0b1026; font-weight: 800; padding: 12px 22px; border: 3px solid #000; box-shadow: 3px 3px 0 #000; text-align: center; }
+.net-proxy small, .srv small { display: block; font-weight: 500; font-size: 11.5px; }
+.net-lines { width: 82%; height: 26px; border: 2px solid var(--line); border-bottom: 0; border-radius: 10px 10px 0 0; margin-top: 16px; }
+.net-servers { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: 100%; }
+.srv { text-align: center; padding: 12px 4px; border: 2px solid #000; font-weight: 700; font-size: 13.5px; color: #0b1026; }
+.srv.a { background: var(--green); }
+.srv.z { background: #2b3778; color: var(--text); }
+.grid12 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.grid12 div { aspect-ratio: 1; border: 2px solid #000; display: grid; place-items: center; font-size: 22px; background: #2b3778; transition: background .5s; }
+.grid12 div.a { background: var(--green); }
+.calc label { display: block; font-size: 14.5px; color: var(--muted); margin-bottom: 14px; }
+.calc label b { float: right; color: var(--text); font-family: var(--mono); }
+.calc input { width: 100%; accent-color: var(--green); margin-top: 6px; }
+.calc-out { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+.calc-out div { background: #0e1533; border-radius: 10px; padding: 14px; text-align: center; }
+.calc-out span { display: block; color: var(--muted); font-size: 13px; }
+.calc-out b { font-family: var(--pixel); font-size: 20px; display: block; margin-top: 8px; }
+.calc-out b.g { color: var(--green2); }
+@media (max-width: 860px) {
+  .demo, .case { grid-template-columns: 1fr; gap: 18px; }
+  .case.flip .case-text { order: 0; }
+  .net-servers { grid-template-columns: repeat(3, 1fr); }
+  .works i { display: none; }
+}
 
 /* states */
 .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -141,7 +220,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <nav>
       <a class="brand" href="#"><img src="assets/logo.svg" alt="">Blink</a>
       <div class="links">
-        <a href="#who">Who it is for</a>
+        <a href="#who">Use cases</a>
         <a href="#how">How it works</a>
         <a href="#numbers">Numbers</a>
         <a href="#vs">vs lazymc</a>
@@ -152,7 +231,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <div class="hero-inner">
       <img class="eye" src="assets/logo.svg" alt="Blink logo, a pixel eye">
       <h1>Your server sleeps.<br><span class="g">It wakes up in 0.1 s.</span></h1>
-      <p class="lead">Blink makes a Minecraft Paper server go to sleep when nobody plays and gives your RAM back. When a friend joins, it is awake again in a tenth of a second. The server list keeps showing your MOTD the whole time.</p>
+      <p class="lead">The RAM solution for Minecraft servers. Blink puts a server to sleep when nobody plays and gives its memory back; when someone joins, it is awake in a tenth of a second. For a server with friends, a server at home, or a whole BungeeCord or Velocity network.</p>
       <div class="cta">
         <a class="btn" href="#install">Get started</a>
         <a class="btn alt" href="https://github.com/kylianxdev/blinkmc">&#9733; Star on GitHub</a>
@@ -170,13 +249,124 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
   </div>
   <p class="note" style="text-align:center;margin-top:14px">Measured on our server (6 vCPU VPS, Paper 26.3). Yours depends on your hardware; the <a href="https://github.com/kylianxdev/blinkmc/tree/main/tools">scripts to measure it</a> are in the repo.</p>
 
+  <div class="works">
+    <span>Works on</span><b>Linux</b><b>macOS</b><b>Windows</b><i></i><b>Paper</b><b>Purpur</b><i></i><b>BungeeCord</b><b>Velocity</b><i></i><span>tested on every change</span>
+  </div>
+
+  <section id="demo">
+    <div class="demo">
+      <div class="mc-list">
+        <div class="mc-title">Play Multiplayer</div>
+        <div class="mc-entry" id="mc-entry">
+          <img src="assets/logo.svg" alt="">
+          <div class="mc-text">
+            <div class="mc-name">My Server <span class="mc-ping" id="mc-ping"><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="mc-motd" id="mc-motd">💤 sleeping &bull; join to wake it up</div>
+          </div>
+          <div class="mc-players" id="mc-players">0/20</div>
+        </div>
+        <div class="mc-btns"><span class="mc-btn" id="mc-join">Join Server</span><span class="mc-btn dim">Direct Connect</span><span class="mc-btn dim">Add Server</span></div>
+      </div>
+      <div class="demo-side">
+        <div class="demo-step" id="demo-step">The server is asleep. Your friend clicks Join.</div>
+        <div class="meter"><div class="meter-fill" id="meter-fill"></div></div>
+        <div class="meter-label"><span>RAM of the server</span><b id="meter-val">0.19 GB</b></div>
+        <div class="meter-label"><span>CPU</span><b id="cpu-val">0 %</b></div>
+      </div>
+    </div>
+  </section>
+
   <section id="who">
-    <div class="kicker">WHO IT IS FOR</div>
-    <h2>Servers that are empty most of the day</h2>
-    <div class="states">
-      <div class="state"><span class="tag t-awake">FRIENDS</span><h3>A server for your friends</h3><p>Empty most of the day. Asleep it costs a few hundred MB instead of gigabytes: a smaller VPS does, or one machine runs more servers.</p></div>
-      <div class="state"><span class="tag t-frozen">AT HOME</span><h3>Hosting on your own PC</h3><p>A frozen server uses no CPU and hands its memory back, so your games and browser get it, and your PC can idle instead of ticking an empty world all day.</p></div>
-      <div class="state"><span class="tag t-cold">NETWORKS</span><h3>Networks</h3><p>Behind BungeeCord or Velocity, one Blink per server: lobby, minigames, a personal world per player. Only the servers people are on stay awake; <code>/server</code> wakes a sleeping one. Tested with five servers.</p></div>
+    <div class="kicker">USE CASES</div>
+    <h2>Every server that is empty most of the time</h2>
+    <p class="sub">Most Minecraft servers are empty most of the day. Blink makes that time free.</p>
+
+    <div class="case">
+      <div class="case-text">
+        <span class="tag t-awake">FRIENDS</span>
+        <h3>Your friends' server, without the idle bill</h3>
+        <p>You play a few hours in the evening; the server sits there the other 21 hours, holding gigabytes. With Blink it saves and freezes 30 seconds after the last player leaves, and wakes up the moment someone joins. A smaller VPS does the job, or the same one runs more.</p>
+        <ul><li>0.19 GB while asleep instead of 3 GB</li><li>Nobody notices: same address, same MOTD, no mods</li><li>Saves before every freeze</li></ul>
+      </div>
+      <div class="case-visual">
+        <div class="day">
+          <div class="day-bar"><span style="left:0;width:70%" class="z"></span><span style="left:70%;width:13%" class="a"></span><span style="left:83%;width:17%" class="z"></span></div>
+          <div class="day-axis"><span>00:00</span><span>12:00</span><span>17:00</span><span>20:00</span><span>24:00</span></div>
+          <div class="day-legend"><i class="a"></i> awake while you play <i class="z"></i> asleep, 0.19 GB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="case flip">
+      <div class="case-text">
+        <span class="tag t-frozen">AT HOME</span>
+        <h3>Host at home. Your PC stays yours.</h3>
+        <p>Hosting on your own PC or a home server? An empty Minecraft server still ticks all day and keeps its memory. Frozen, it uses no CPU at all and hands its RAM to your games, browser and everything else. Runs on Linux, macOS and Windows, no admin rights needed.</p>
+        <ul><li>0 % CPU while asleep</li><li>Memory back for your own programs</li><li>One command to install, one to remove</li></ul>
+      </div>
+      <div class="case-visual">
+        <div class="tasks">
+          <div class="task-head"><span>Process</span><span>CPU</span><span>Memory</span></div>
+          <div class="task"><span>🎮 Your game</span><span>18 %</span><span>4.1 GB</span></div>
+          <div class="task"><span>🌐 Browser</span><span>3 %</span><span>1.6 GB</span></div>
+          <div class="task hl"><span>💤 Minecraft server (frozen)</span><span>0 %</span><span>0.19 GB</span></div>
+          <div class="task"><span>👁 Blink</span><span>0 %</span><span>1.5 MB</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case-text">
+        <span class="tag t-cold">NETWORKS</span>
+        <h3>The RAM solution for BungeeCord and Velocity</h3>
+        <p>Lobby, survival, creative, minigames: put a Blink in front of each backend server. Only the servers people are on stay awake. A player who types <code>/server survival</code> wakes it up and is in the world in about a second; the proxy just sees a server that answers.</p>
+        <ul><li>Tested with one proxy and five servers, on BungeeCord and Velocity</li><li>Switch to a sleeping server: 0.3 to 1.7 s until in game</li><li>Five servers asleep: about 1 GB together</li></ul>
+      </div>
+      <div class="case-visual">
+        <div class="net">
+          <div class="net-proxy">Proxy<small>BungeeCord / Velocity</small></div>
+          <div class="net-lines"></div>
+          <div class="net-servers">
+            <div class="srv a">Lobby<small>2 players</small></div>
+            <div class="srv a">Survival<small>3 players</small></div>
+            <div class="srv z">Creative<small>asleep</small></div>
+            <div class="srv z">Minigames<small>asleep</small></div>
+            <div class="srv z">Events<small>asleep</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="case flip">
+      <div class="case-text">
+        <span class="tag t-awake">WORLDS</span>
+        <h3>A world for every player</h3>
+        <p>Personal worlds, private islands, event maps, a test server for each builder: give everyone their own server without paying for all of them all day. A world sleeps until its owner comes back, then it is there in a blink, exactly as they left it.</p>
+        <ul><li>Four players to four sleeping worlds at once: under 2 s each</li><li>Every world keeps its own plugins and settings</li><li>Asleep worlds cost about 0.2 GB each</li></ul>
+      </div>
+      <div class="case-visual">
+        <div class="grid12" id="grid12"></div>
+      </div>
+    </div>
+
+    <div class="case">
+      <div class="case-text">
+        <span class="tag t-frozen">HOSTS</span>
+        <h3>More servers on the same machine</h3>
+        <p>Run servers for friends, a community or customers? Frozen servers take a fraction of their memory, so the machine fits far more servers that are rarely full at the same time. Try it with your own numbers:</p>
+      </div>
+      <div class="case-visual">
+        <div class="calc">
+          <label>Servers <b id="c-n-v">5</b><input id="c-n" type="range" min="1" max="30" value="5"></label>
+          <label>RAM per server while playing <b id="c-r-v">3 GB</b><input id="c-r" type="range" min="1" max="12" value="3"></label>
+          <label>Hours played per server, per day <b id="c-h-v">3 h</b><input id="c-h" type="range" min="1" max="24" value="3"></label>
+          <div class="calc-out">
+            <div><span>Always on</span><b id="c-a">15 GB</b></div>
+            <div><span>With Blink, on average</span><b class="g" id="c-b">2.8 GB</b></div>
+          </div>
+          <p class="note">Average over a day, with 0.2 GB per sleeping server (our measurement). When everyone plays at once you still need the full amount.</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -315,6 +505,57 @@ document.getElementById("copy").addEventListener("click", e => {
     e.target.textContent = "Copied!"; setTimeout(() => e.target.textContent = "Copy", 1500);
   });
 });
+
+// demo: a sleeping server, a join, back in game, asleep again
+(function () {
+  const motd = document.getElementById("mc-motd"), step = document.getElementById("demo-step"),
+    fill = document.getElementById("meter-fill"), val = document.getElementById("meter-val"),
+    cpu = document.getElementById("cpu-val"), ping = document.getElementById("mc-ping"),
+    players = document.getElementById("mc-players"), join = document.getElementById("mc-join");
+  const states = [
+    [2600, "The server is asleep. Your friend clicks Join.", "💤 sleeping \u2022 join to wake it up", "0/20", 6, "0.19 GB", "0 %", false, "#6c8cff", false],
+    [900, "Blink thaws the server...", "\u231b waking up...", "0/20", 6, "0.19 GB", "0 %", false, "#6c8cff", true],
+    [3200, "In the world, about a second later.", "\u26cf welcome back!", "1/20", 62, "1.9 GB", "4 %", true, "#36c46b", false],
+    [2400, "Everyone leaves. 30 s later: saved and frozen.", "\u26cf welcome back!", "0/20", 62, "1.9 GB", "1 %", true, "#36c46b", false],
+    [1200, "Memory moves out of RAM, CPU goes to zero.", "💤 sleeping \u2022 join to wake it up", "0/20", 6, "0.19 GB", "0 %", false, "#6c8cff", false],
+  ];
+  let i = 0;
+  function show() {
+    const [ms, text, m, p, w, v, c, on, color, press] = states[i];
+    step.textContent = text; motd.textContent = m; players.textContent = p;
+    fill.style.width = w + "%"; fill.style.background = color; val.textContent = v; cpu.textContent = c;
+    ping.classList.toggle("on", on); join.classList.toggle("press", press);
+    i = (i + 1) % states.length;
+    setTimeout(show, ms);
+  }
+  show();
+})();
+// personal worlds: a few wake up, the rest sleeps
+(function () {
+  const grid = document.getElementById("grid12");
+  const icons = ["🏝", "🏰", "⛏", "🌋", "🌲", "🏜", "❄", "🌸", "🗿", "🍄", "⚓", "🐉"];
+  const tiles = icons.map(icon => { const d = document.createElement("div"); d.textContent = icon; grid.appendChild(d); return d; });
+  function tick() {
+    tiles.forEach(t => t.classList.remove("a"));
+    const n = 2 + Math.floor(Math.random() * 2);
+    for (let k = 0; k < n; k++) tiles[Math.floor(Math.random() * tiles.length)].classList.add("a");
+  }
+  tick(); setInterval(tick, 2600);
+})();
+// RAM calculator
+(function () {
+  const n = document.getElementById("c-n"), r = document.getElementById("c-r"), h = document.getElementById("c-h");
+  function calc() {
+    const N = +n.value, R = +r.value, H = +h.value;
+    document.getElementById("c-n-v").textContent = N;
+    document.getElementById("c-r-v").textContent = R + " GB";
+    document.getElementById("c-h-v").textContent = H + " h";
+    document.getElementById("c-a").textContent = (N * R).toFixed(0) + " GB";
+    document.getElementById("c-b").textContent = (N * (R * H / 24 + 0.2 * (1 - H / 24))).toFixed(1) + " GB";
+  }
+  [n, r, h].forEach(x => x.addEventListener("input", calc)); calc();
+})();
+
 // install tabs
 document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === tab));

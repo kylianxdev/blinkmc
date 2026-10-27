@@ -19,8 +19,8 @@
 
 # Blink
 
-**Blink makes your Minecraft server sleep when nobody plays and wake up in 0.1 seconds when someone
-joins.** The sleeping server gives most of its memory back to the machine, the server list keeps
+**The RAM solution for Minecraft servers and BungeeCord or Velocity networks.** Blink makes your
+server sleep when nobody plays and wake up in 0.1 seconds when someone joins. The sleeping server gives most of its memory back to the machine, the server list keeps
 showing your MOTD and icon, and players don't install anything. Stock Paper, stock Java, no mods.
 
 Measured on our server (6 vCPU VPS, Paper 26.3, an 838 MB world). Your numbers depend on your
