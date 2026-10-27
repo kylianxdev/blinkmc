@@ -86,10 +86,15 @@ h2 { font-family: var(--pixel); font-size: clamp(18px, 3vw, 24px); line-height: 
 .steps { counter-reset: s; display: grid; gap: 16px; }
 .step { display: grid; grid-template-columns: 56px 1fr; gap: 18px; background: var(--bg2); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
 .step::before { counter-increment: s; content: counter(s); font-family: var(--pixel); font-size: 18px; width: 56px; height: 56px; display: grid; place-items: center; background: var(--card); border: 3px solid #000; box-shadow: 3px 3px 0 #000; color: var(--gold); }
+.step > div { min-width: 0; }
 .step h3 { margin: 4px 0 6px; font-size: 18.5px; }
 .step p { margin: 0; color: var(--muted); font-size: 15.5px; }
 pre { background: #070b1c; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 14px; line-height: 1.6; margin: 12px 0 0; color: #cfd6ff; }
 pre .c { color: #6b76a8; }
+
+.install { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
+.install pre { flex: 1 1 520px; margin: 0; font-size: 15px; color: var(--green2); display: flex; align-items: center; }
+.btn.copy { cursor: pointer; font-size: 11px; }
 
 /* faq */
 details { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; }
@@ -143,7 +148,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
   <div class="stats">
     <div class="stat"><b>0.1 s</b><span>until a sleeping server takes the join</span></div>
     <div class="stat"><b>4.4 s</b><span>cold start of Paper, down from 11.5 s</span></div>
-    <div class="stat"><b>-71%</b><span>RAM of the sleeping server, the rest is free for your box</span></div>
+    <div class="stat"><b>-90%</b><span>RAM of a sleeping server: 0.3 GB instead of 3 GB</span></div>
     <div class="stat"><b>0</b><span>mods, forks of Paper or client changes</span></div>
   </div>
 
@@ -155,13 +160,13 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
       <div class="state">
         <span class="tag t-awake">AWAKE</span>
         <h3>Playing</h3>
-        <p>A normal Paper server. lazymc only relays the connection. After 30 minutes without players it goes to sleep.</p>
+        <p>A normal Paper server. lazymc only relays the connection. When everyone left, the heap shrinks and the world stops ticking.</p>
         <div class="num">same TPS, same plugins</div>
       </div>
       <div class="state">
         <span class="tag t-frozen">FROZEN</span>
         <h3>Asleep</h3>
-        <p>The JVM is paused, not stopped. Linux squeezes its memory into compressed RAM (zswap) and the coldest part to disk. On a join it simply continues.</p>
+        <p>Five minutes after the last player leaves, the JVM is paused, not stopped. Linux squeezes its memory into compressed RAM (zswap) and the coldest part to disk. On a join it simply continues.</p>
         <div class="num">wake up: 0.1 s</div>
       </div>
       <div class="state">
@@ -190,7 +195,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <div class="kicker">WHAT MADE IT FAST</div>
     <h2>Four tricks</h2>
     <div class="steps">
-      <div class="step"><div><h3>Freeze instead of stop</h3><p>A paused JVM keeps all its state, so waking it up is instant. Blink pushes the paused server's memory into zswap and swap, so a sleeping server costs a fraction of its RAM. Paper's watchdog is told not to panic about the time it was asleep.</p></div></div>
+      <div class="step"><div><h3>Freeze instead of stop</h3><p>A paused JVM keeps all its state, so waking it up is instant. Blink first lets the heap shrink, then pushes the paused server's memory into zswap (zstd) and swap: 0.3 GB instead of 3 GB. Paper's watchdog is told not to panic about the time it was asleep.</p></div></div>
       <div class="step"><div><h3>Start Paper without paperclip</h3><p>Paper's launcher loads the server in its own class loader, which Java's AOT cache cannot store. Blink reads the class path from <code>paper.jar</code> and starts <code>org.bukkit.craftbukkit.Main</code> directly.</p></div></div>
       <div class="step"><div><h3>Java's AOT cache with streamable objects</h3><p>A training run records what Paper loads, links and runs. On Java 25 Minecraft's method type table is too big for the cache. Java 26's streamable AOT objects make the full 230 MB cache fit.</p></div></div>
       <div class="step"><div><h3>A faster lazymc</h3><p>Fixes for detecting current Paper versions, status checks every 50 ms while waking, no pointless polling of a frozen server and a clean, saving shutdown even while frozen.</p></div></div>
@@ -200,21 +205,18 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
   <section id="install">
     <div class="kicker">INSTALL</div>
     <h2>Get started</h2>
-    <p class="sub">Linux with systemd and tmux, Paper 26 or newer and Java 26. Ubuntu 26.04: <code>apt install openjdk-26-jre-headless tmux</code>.</p>
-    <div class="steps">
-      <div class="step"><div><h3>Get Blink</h3>
-<pre><span class="c"># in your server folder (next to paper.jar)</span>
-git clone https://github.com/kylianxdev/blinkmc /opt/blinkmc
-cp /opt/blinkmc/start.sh /opt/blinkmc/lazymc.example.toml .
-mv lazymc.example.toml lazymc.toml</pre></div></div>
-      <div class="step"><div><h3>Get the patched lazymc</h3><p>Download the binary from the <a href="https://github.com/kylianxdev/blinkmc/releases">releases</a>, or build it from <a href="https://github.com/kylianxdev/lazymc/tree/blink">the fork</a> with <code>cargo build --release</code>.</p></div></div>
-      <div class="step"><div><h3>Set up sleeping</h3>
-<pre>sudo /opt/blinkmc/setup/enable-sleep.sh   <span class="c"># swap file, zswap, the freeze helper</span>
-sudo cp /opt/blinkmc/systemd/minecraft.service /etc/systemd/system/
-sudo systemctl enable --now minecraft</pre></div></div>
-      <div class="step"><div><h3>Test it</h3>
-<pre>python3 /opt/blinkmc/tools/status-ping.py localhost              <span class="c"># what the server list shows</span>
-python3 /opt/blinkmc/tools/status-ping.py localhost --join --name YourName</pre></div></div>
+    <p class="sub">One command. Stop your server, go to the folder with your <code>paper.jar</code> and paste this:</p>
+    <div class="install">
+      <pre id="cmd">curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash</pre>
+      <button class="btn copy" id="copy" type="button">Copy</button>
+    </div>
+    <div class="steps" style="margin-top:22px">
+      <div class="step"><div><h3>It sets everything up</h3><p>Java 26 if you don't have it, the patched lazymc, a fast <code>start.sh</code>, swap and zswap, and a systemd service. Your MOTD, version and whitelist are read from your server. Your own files are kept and <code>--uninstall</code> puts them back.</p></div></div>
+      <div class="step"><div><h3>Play</h3><p>Players join on the same address as always. Five minutes after the last player leaves, the server freezes. The next join wakes it up.</p></div></div>
+      <div class="step"><div><h3>Tweak it (optional)</h3>
+<pre><span class="c"># options go after "bash -s --"</span>
+curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash -s -- --heap 6G --sleep 10</pre>
+<p style="margin-top:10px">Linux with systemd on x86_64, Paper or a Paper fork. All options are in the <a href="https://github.com/kylianxdev/blinkmc#7-install">README</a>.</p></div></div>
     </div>
   </section>
 
@@ -223,8 +225,9 @@ python3 /opt/blinkmc/tools/status-ping.py localhost --join --name YourName</pre>
     <h2>Questions</h2>
     <details><summary>Do players need to install anything?</summary><p>No. It is a normal Minecraft server for them. The only thing they may notice is a different MOTD while the server sleeps.</p></details>
     <details><summary>Can bots keep my server awake?</summary><p>Only players on <code>whitelist.json</code> can wake the server. Scanners try to join public servers all day; without this setting each of them would wake yours.</p></details>
-    <details><summary>Is a frozen server safe for my world?</summary><p>Paper saves every few minutes and nobody has played for 30 minutes when it freezes. Stopping the service thaws the server first and lets Paper save and shut down normally.</p></details>
+    <details><summary>Is a frozen server safe for my world?</summary><p>Paper saves every few minutes and nobody has played for 5 minutes when it freezes. Stopping the service thaws the server first and lets Paper save and shut down normally.</p></details>
     <details><summary>What about plugins, dynmap or BlueMap?</summary><p>Plugins freeze and wake with the server. BlueMap's web server can run on its own, so the web map stays online while the server sleeps. The write-up shows how.</p></details>
+    <details><summary>Can I undo it?</summary><p>Yes: run the same command with <code>bash -s -- --uninstall</code>. Your own <code>start.sh</code> and <code>server.properties</code> come back.</p></details>
     <details><summary>Does it work with Spigot, Fabric or Forge?</summary><p>The sleeping part works with any server lazymc supports. The fast cold start is written for Paper and its forks (Purpur, Folia, Leaf), because it reads Paper's launcher lists.</p></details>
   </section>
 </div>
@@ -249,6 +252,12 @@ for (let i = 0; i < 70; i++) {
   if (Math.random() < .2) { s.style.width = s.style.height = "4px"; }
   sky.appendChild(s);
 }
+// copy the install command
+document.getElementById("copy").addEventListener("click", e => {
+  navigator.clipboard?.writeText(document.getElementById("cmd").textContent).then(() => {
+    e.target.textContent = "Copied!"; setTimeout(() => e.target.textContent = "Copy", 1500);
+  });
+});
 // bars grow when the chart scrolls into view
 const fills = document.querySelectorAll(".fill");
 const grow = () => fills.forEach(f => f.style.width = Math.max(1, f.dataset.w / 13.2 * 100) + "%");

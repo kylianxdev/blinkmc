@@ -26,11 +26,23 @@ showing your MOTD and icon, and players don't install anything. Stock Paper, sto
 |---|---|---|
 | Join on a sleeping server until the real server takes over | not possible | **0.1 to 0.4 s** |
 | Cold start (after a reboot or an update) | 13.2 s | **5.0 s** |
-| Memory of a server nobody plays on | 3.0 GB in RAM, 8 GB reserved | **0.9 GB**, compressed |
+| Memory of a server nobody plays on | 3.0 GB in RAM, 8 GB reserved | **0.3 GB**, compressed |
 | Server list (MOTD, icon) while asleep | | works |
 
-This README is written as a short paper: what we wanted, how we got there, what failed on the way,
-and how to do it yourself. If you just want it running, jump to [Install](#7-install).
+## Install in one command
+
+In the folder with your `paper.jar` (stop your server first):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash
+```
+
+That's it. It installs Java 26 if needed, sets everything up, starts your server as a service and
+prints how to reach the console. Your old `start.sh` and `server.properties` are kept, and
+`--uninstall` puts them back. More options in [Install](#7-install).
+
+The rest of this README is written as a short paper: what we wanted, how we got there and what
+failed on the way.
 
 Kylian de Groot, October 2026
 
@@ -43,8 +55,8 @@ Stopping it when nobody plays is easy; starting it again so fast that a player d
 the hard part. Blink combines a sleep proxy (**lazymc**, with our patches) with two ways back:
 
 1. **Freeze.** The JVM is paused instead of stopped. Linux moves its memory into compressed RAM
-   (zswap) and swap, which frees about 70% of it. A join continues the paused process:
-   **0.1 to 0.4 s**.
+   (zswap) and swap, and the heap shrinks itself first when the server is quiet. A sleeping server
+   keeps about 0.3 GB of its 3 GB. A join continues the paused process: **0.1 to 0.4 s**.
 2. **Cold start.** For reboots and updates. Paper is started without its paperclip launcher so
    **Java's AOT cache** (Project Leyden) can hold all of its classes. Java 26's streamable AOT
    objects are needed, because Minecraft's method type table is too big for the older format.
@@ -164,8 +176,14 @@ So the fast path does not start at all. lazymc can freeze the server (`SIGSTOP`)
 adds:
 
 * **Memory out of the way.** `blink-freeze-helper` notices a frozen server and writes to its cgroup's
-  `memory.reclaim`. The kernel moves the heap into **zswap** (compressed with lz4, about 3.3:1 here)
-  and the coldest pages to a swap file. A server with 3.0 GB in RAM goes to 0.9 GB.
+  `memory.reclaim`. The kernel moves the heap into **zswap** and the coldest pages to a swap file.
+  With lz4 a server went from 3.0 GB to 0.9 GB; zstd compresses better (3.9:1 instead of 2.7:1) and
+  still wakes in 0.3 s, so Blink uses zstd.
+* **Shrink before freezing.** The heap starts at 1 GB instead of the maximum
+  (`-Xms1G -Xmx8G`), and `-XX:G1PeriodicGCInterval=60000` lets G1 collect and give memory back
+  when the server is quiet. Together with Minecraft's own `pause-when-empty-seconds=60` an empty
+  server drops from 3.1 GB to 1.2 GB before it is frozen, and to **0.3 GB** after.
+* **Freeze after 5 minutes** instead of 30. With a 0.1 s wake up there is no reason to wait.
 * **No read ahead from swap** (`vm.page-cluster=0`). With zswap, reading 8 pages per fault only adds
   latency. Together with the next point this took a wake up from 1.2 s to 0.1 s.
 * **lazymc polls every 50 ms while waking**, instead of every 2 s, and does not poll a frozen server
@@ -209,11 +227,11 @@ is lazymc `master` with #107 and the patches above.
 | Direct start, Java 26 full AOT cache | 5.0 s | Paper: median 4.35 s over 25 starts |
 | **Thaw a frozen server (join until the real server answers)** | **0.1 to 0.4 s** | memory in zswap and swap |
 
-| Memory | Awake, idle | Frozen |
-|---|---|---|
-| Minecraft service in RAM | 3.0 GB | 0.9 GB (compressed) |
-| lazymc | 6 MB | 6 MB |
-| BlueMap web server | 73 MB | 73 MB |
+| Memory | Before Blink | Awake, empty | Frozen |
+|---|---|---|---|
+| Minecraft service in RAM | 8 GB (AlwaysPreTouch) | 1.2 GB | **0.3 GB** (compressed) |
+| lazymc | | 6 MB | 6 MB |
+| BlueMap web server (optional) | | 73 MB | 73 MB |
 
 Tick performance is not affected. The AOT cache only changes how classes get loaded; hot code is JIT
 compiled as before. A frozen server uses no CPU at all.
@@ -232,8 +250,9 @@ compiled as before. A frozen server uses no CPU at all.
 
 ## 6. Limitations
 
-* **The first start after an update is slow** (the training run, about 13 s); the cache is built when
-  it stops. With `wake_on_start` that happens without anyone waiting for it.
+* **The first start after an update is slow** (the training run, about 13 s), and the start after it
+  builds the cache (a few seconds extra). With `wake_on_start` that mostly happens without anyone
+  waiting for it.
 * **Plugin classes are not cached** (they have their own class loaders). With many plugins the cold
   start gain is smaller. Thawing is not affected.
 * **No watchdog for real hangs** while the timeouts are raised.
@@ -244,76 +263,68 @@ compiled as before. A frozen server uses no CPU at all.
 
 ## 7. Install
 
-You need Linux with systemd and tmux, Paper 26 or newer, and Java 26
-(`apt install openjdk-26-jre-headless tmux` on Ubuntu 26.04).
-
-**1. Get Blink and the fast start script**
+Linux with systemd (Ubuntu, Debian and most others), x86_64, and a Paper server (or a Paper fork
+such as Purpur). Stop your server, go to its folder and run:
 
 ```bash
-git clone https://github.com/kylianxdev/blinkmc /opt/blinkmc
-cd /path/to/your/server            # next to paper.jar
-cp /opt/blinkmc/start.sh . && chmod +x start.sh
-cp /opt/blinkmc/lazymc.example.toml lazymc.toml
+curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash
 ```
 
-Set `HEAP` in `start.sh` if 8G is not right for you.
-
-**2. Get the patched lazymc.** Download `lazymc-blink-linux-x64` from the
-[releases](https://github.com/kylianxdev/blinkmc/releases), or build it:
+Options go after `bash -s --`:
 
 ```bash
-git clone -b blink https://github.com/kylianxdev/lazymc && cd lazymc
-cargo build --release              # binary in target/release/lazymc
+curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash -s -- --heap 6G --sleep 10
 ```
 
-**3. Configure lazymc.** In `lazymc.toml`, set `version` and `protocol` to what your server reports
-(`python3 /opt/blinkmc/tools/status-ping.py localhost` while it runs normally) and the MOTD texts.
-lazymc moves the real server to `127.0.0.1:25566` in `server.properties` by itself.
+| Option | Default | |
+|---|---|---|
+| `--dir PATH` | current folder | server folder |
+| `--heap SIZE` | 60% of RAM, at most 8G | maximum Java heap |
+| `--sleep MINUTES` | 5 | freeze after this many minutes without players |
+| `--name NAME` | minecraft | systemd service name (use another one per server) |
+| `--swap SIZE` | heap + 2G | swap file, only when there is no swap yet |
+| `--uninstall` | | undo everything for this server |
 
-**4. Tell Paper's watchdog about sleeping**
+What it does, step by step:
 
-```yaml
-# spigot.yml
-settings:
-  timeout-time: 1728000
-  restart-on-crash: false
-# config/paper-global.yml
-watchdog:
-  early-warning-delay: 1728000000
-```
+1. Finds your Paper jar and who owns the files (the server runs as that user).
+2. Installs Java 26, tmux and python3 when they are missing (apt).
+3. Downloads the patched lazymc (checksum checked) and the freeze helper to `/opt/blinkmc`.
+4. Writes `start.sh` and `lazymc.toml` in your server folder. The protocol version, your MOTD and
+   your whitelist setting are read from your server. Your own files are kept as `*.before-blink`.
+5. Sets up a swap file (if you have none), zswap with zstd, and two sysctls.
+6. Installs and starts the `minecraft` service and the freeze helper.
 
-**5. Enable sleeping and install the service**
+Afterwards:
 
 ```bash
-sudo /opt/blinkmc/setup/enable-sleep.sh        # swap file, zswap, freeze helper
-sudo cp /opt/blinkmc/systemd/minecraft.service /etc/systemd/system/   # adjust paths and user
-sudo systemctl daemon-reload && sudo systemctl enable --now minecraft
+sudo -u <user> tmux -L minecraft attach -t minecraft   # console (leave with Ctrl+B, then D)
+sudo systemctl stop minecraft                          # saves and stops, also when frozen
+python3 tools/status-ping.py localhost --join --name YourName   # test a wake up
 ```
 
-The console is still `tmux attach -t minecraft`.
+**Whitelist.** Only players on `whitelist.json` can wake the server when your whitelist is on.
+With the whitelist off anyone can, including the bots that scan the internet all day. The
+installer warns you about that.
 
-**6. Test it**
+**BlueMap (optional).** BlueMap's web server would freeze with the server. Run BlueMap's CLI as its
+own web server instead (`systemd/bluemap-web.service`, see section 3.8).
 
-```bash
-python3 /opt/blinkmc/tools/status-ping.py localhost                          # server list
-python3 /opt/blinkmc/tools/status-ping.py localhost --join --name YourName   # wake it
-```
-
-**Optional: BlueMap.** Download `bluemap-<version>-cli.jar`, copy your plugin's `maps/` and
-`storages/` config to its `config/` folder with absolute paths, disable the plugin's web server,
-enable `write-players-interval` and `write-markers-interval` in the plugin, and install
-`systemd/bluemap-web.service`.
+**Build lazymc yourself.** The installer uses the binary from the
+[latest release](https://github.com/kylianxdev/blinkmc/releases/latest). Its source is the
+[`blink` branch](https://github.com/kylianxdev/lazymc/tree/blink) of the lazymc fork
+(`cargo build --release`), or `patches/lazymc-blink.patch` on top of lazymc master.
 
 ## Files
 
 | File | What |
 |---|---|
-| `start.sh` | Starts Paper directly with the AOT cache, rebuilds the cache after updates |
-| `lazymc.example.toml` | Freeze after 30 min, hold the player, whitelist only wake, start on boot |
-| `setup/enable-sleep.sh` | Swap file, zswap with lz4, sysctls, freeze helper service |
+| `install.sh` | The one command installer (and `--uninstall`) |
+| `start.sh` | Starts Paper directly with the AOT cache, rebuilds it after updates, sets the watchdog |
 | `setup/blink-freeze-helper.sh` | Moves a frozen server's memory to zswap and swap |
+| `lazymc.example.toml` | Reference config; the installer writes one for your server |
 | `patches/lazymc-blink.patch` | lazymc #107 plus Blink's changes, on top of lazymc master |
-| `systemd/` | Services for the server (lazymc in tmux), the freeze helper and BlueMap's web server |
+| `systemd/bluemap-web.service` | Optional: BlueMap's web server, separate from the game server |
 | `tools/measure-startup.sh` | Time until "Done" |
 | `tools/status-ping.py` | Server list ping, or a test join that wakes the server |
 | `docs/` | The website |
