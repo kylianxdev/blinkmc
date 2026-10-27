@@ -70,7 +70,10 @@ h2{font-size:clamp(22px,3.2vw,32px);margin:6px 0 12px;line-height:1.3}
 .ping.on i{background:#3ae25f}
 .mp-b{display:flex;gap:8px;margin-top:12px}
 .mp-b .btn{flex:1;font-size:12px;padding:9px 4px;text-align:center}
-.side .step{font:400 17px var(--mc);min-height:52px}
+.side .step{font:400 16px var(--mc);min-height:46px}
+.big{display:flex;align-items:baseline;gap:12px;min-height:46px}
+.big b{font:400 34px var(--mc);color:#2d6e19;text-shadow:2px 2px 0 #fff}
+.big span{font-size:14px}
 .bar{height:16px;background:#555;border:2px solid #373737;margin:14px 0 8px}
 .bar i{display:block;height:100%;width:6%;background:#7c9cff;transition:width .9s,background .4s}
 .row{display:flex;justify-content:space-between;font-size:14px}
@@ -151,7 +154,7 @@ footer a{color:#b8f08f}
   <div class="wrap">
     <nav>
       <a class="brand" href="#"><img src="assets/eye.png" alt="" width="40" height="25">Blink</a>
-      <div class="links"><a href="#cases">Use cases</a><a href="#numbers">Numbers</a><a href="#install">Install</a><a href="https://github.com/kylianxdev/blinkmc">GitHub</a></div>
+      <div class="links"><a href="#cases">Use cases</a><a href="#green">Greener</a><a href="#numbers">Numbers</a><a href="#install">Install</a><a href="https://github.com/kylianxdev/blinkmc">GitHub</a></div>
     </nav>
     <div class="hero-in">
       <h1>Your server sleeps.<br><em>It wakes up in 0.1 s.</em></h1>
@@ -184,12 +187,12 @@ footer a{color:#b8f08f}
       </div>
       <div class="gui side">
         <div class="step" id="step"></div>
+        <div class="big"><b id="big"></b><span id="bigs"></span></div>
         <div class="bar"><i id="fill"></i></div>
         <div class="row"><span>RAM of the server</span><b id="ram"></b></div>
         <div class="row"><span>CPU</span><b id="cpu"></b></div>
       </div>
     </div>
-    <p class="note" style="text-align:center;margin-top:14px">Waking up runs at real speed here. We almost slowed it down 90% so you could actually see it. <span class="btn" id="slow" style="font-size:12px;padding:6px 12px;margin-left:6px">Slow motion: off</span></p>
   </section>
 
   <section id="cases">
@@ -263,6 +266,31 @@ footer a{color:#b8f08f}
         <label>Hours played per server, per day <b id="hv"></b><input id="h" type="range" min="1" max="24" value="3"></label>
         <div class="out"><div class="slot"><span>Always on</span><b id="oa"></b></div><div class="slot"><span>With Blink, on average</span><b class="g" id="ob"></b></div></div>
         <p style="font-size:13px;margin:10px 0 0">Average over a day, 7 MB per sleeping server after 10 minutes (our measurement). When everyone plays at once you still need the full amount.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="green">
+    <div class="kick">GREENER</div>
+    <h2>Even if your VPS has the RAM anyway</h2>
+    <p class="sub">A sleeping server is not only cheaper. An empty Paper server still ticks 20 times a second, all day: we measured about 3 % of a CPU core for an empty world. Frozen, it uses nothing. And the bigger win is for hosts: servers are packed onto machines by RAM, and a server asleep for 10 minutes needs 7 MB instead of 3 GB, so the same players need far fewer machines running day and night.</p>
+    <div class="case" style="margin-top:20px">
+      <div class="gui calc">
+        <label>Servers <b id="gnv"></b><input id="gn" type="range" min="10" max="2000" step="10" value="200"></label>
+        <label>Hours played per server, per day <b id="ghv"></b><input id="gh" type="range" min="1" max="24" value="3"></label>
+        <label>RAM per server while playing <b id="grv"></b><input id="gr" type="range" min="1" max="12" value="3"></label>
+        <div class="out"><div class="slot"><span>Machines, always on</span><b id="gma"></b></div><div class="slot"><span>Machines, with Blink</span><b class="g" id="gmb"></b></div></div>
+        <div class="out" style="margin-top:10px"><div class="slot"><span>Energy saved per year</span><b class="g" id="gkwh"></b></div><div class="slot"><span>CO&#8322; saved per year</span><b class="g" id="gco2"></b></div></div>
+      </div>
+      <div class="ct">
+        <h3>The math, so you can check it</h3>
+        <ul>
+          <li>A machine: 64 GB of RAM, 56 GB usable for servers, about 150 W day and night</li>
+          <li>With Blink, the RAM you need is twice the average awake share (for evenings when everyone plays), plus 7 MB per sleeping server</li>
+          <li>Every machine that doesn't have to run saves about 1,300 kWh a year</li>
+          <li>0.25 kg CO&#8322; per kWh, about the European grid average</li>
+        </ul>
+        <p class="tip" style="margin-top:16px">An estimate, not a promise: real hosts differ in machines, power and how players spread over the day. The one thing we measured ourselves: 3 GB to 7 MB per sleeping server, and 3 % of a core to 0.</p>
       </div>
     </div>
   </section>
@@ -350,22 +378,24 @@ footer a{color:#b8f08f}
 
 <script>
 const $=id=>document.getElementById(id);
-// [ms on screen, text, motd, players, bar %, RAM, CPU, ping on, bar color, join pressed, real time?]
-const S=[[2600,"Asleep for a few minutes. A friend clicks Join.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",18,"0.3 GB","0 %",0,"#7c9cff",0,""],
-[700,"Waking up... (real speed)","\u231B waking up...","0/20",18,"0.3 GB","0 %",0,"#7c9cff",1,"t"],
-[3000,"In the world after 0.7 s.","welcome back!","1/20",62,"1.9 GB","4 %",1,"#5dc93f",0,""],
-[2400,"Everyone leaves. 30 s later: saved and frozen.","welcome back!","0/20",62,"1.9 GB","1 %",1,"#5dc93f",0,"\u23E9 30 s"],
-[2000,"Frozen: compressed in RAM. A join now: under a second.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",18,"0.3 GB","0 %",0,"#7c9cff",0,""],
-[2600,"10 minutes later: deep sleep, memory on disk. A join now takes about 3 s.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",3,"7 MB","0 %",0,"#7c9cff",0,"\u23E9 10 min"]];
-let k=0,slow=1;$("slow").onclick=()=>{slow=slow==1?10:1;$("slow").textContent="Slow motion: "+(slow==1?"off":"10\u00d7")};
-(function d(){const s=S[k];$("motd").textContent=s[2];$("pl").textContent=s[3];$("fill").style.width=s[4]+"%";$("fill").style.background=s[8];$("ram").textContent=s[5];$("cpu").textContent=s[6];$("ping").classList.toggle("on",!!s[7]);$("join").classList.toggle("on",!!s[9]);
-const f=s[10]=="t"?slow:1;
-if(s[10]=="t"){const t0=performance.now();(function tick(){const e=Math.min(.7,(performance.now()-t0)/1000/f);$("step").textContent=(f>1?"Slow motion, 10\u00d7: ":"Real speed: ")+"waking up... "+e.toFixed(1)+" s";if(e<.7)requestAnimationFrame(tick)})()}else $("step").textContent=(s[10]?s[10]+" \u2022 ":"")+s[1];
-k=(k+1)%S.length;setTimeout(d,s[0]*f)})();
+// [ms on screen, caption, motd, players, bar %, RAM, CPU, ping on, bar color, join pressed, big text, small text]
+const S=[[2800,"Asleep. A friend clicks Join.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",14,"0.3 GB","0 %",0,"#7c9cff",1,"\u{1F4A4}",""],
+[700,"Waking up","\u231B waking up...","0/20",14,"0.3 GB","0 %",0,"#7c9cff",1,"t","real speed, not slowed down"],
+[3200,"In the world.","welcome back!","1/20",62,"1.9 GB","4 %",1,"#5dc93f",0,"0.7 s","from Join to in game"],
+[2800,"Everyone leaves: saved and frozen.","welcome back!","0/20",14,"0.3 GB","0 %",1,"#7c9cff",0,"\u23E9 30 s","later"],
+[3000,"Deep sleep: memory on disk. A join now takes about 3 s.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",2,"7 MB","0 %",0,"#7c9cff",0,"\u23E9 10 min","later"]];
+let k=0;(function d(){const s=S[k];$("step").textContent=s[1];$("motd").textContent=s[2];$("pl").textContent=s[3];$("fill").style.width=s[4]+"%";$("fill").style.background=s[8];$("ram").textContent=s[5];$("cpu").textContent=s[6];$("ping").classList.toggle("on",!!s[7]);$("join").classList.toggle("on",!!s[9]);$("bigs").textContent=s[11];
+if(s[10]=="t"){const t0=performance.now();(function tick(){const e=Math.min(.7,(performance.now()-t0)/1000);$("big").textContent=e.toFixed(1)+" s";if(e<.7)requestAnimationFrame(tick)})()}else $("big").textContent=s[10];
+k=(k+1)%S.length;setTimeout(d,s[0])})();
 const W=[..."\u{1F3DD}\u{1F3F0}⛏\u{1F30B}\u{1F332}\u{1F3DC}❄\u{1F338}\u{1F5FF}\u{1F344}⚓\u{1F409}"].map(e=>{const i=document.createElement("i");i.className="slot";i.textContent=e;$("worlds").appendChild(i);return i});
 (function w(){W.forEach(i=>i.classList.remove("a"));for(let j=0;j<(2+Math.random()*2|0);j++)W[Math.random()*W.length|0].classList.add("a");setTimeout(w,2600)})();
 function c(){const n=+$("n").value,r=+$("r").value,h=+$("h").value;$("nv").textContent=n;$("rv").textContent=r+" GB";$("hv").textContent=h+" h";$("oa").textContent=n*r+" GB";$("ob").textContent=(n*(r*h/24+.007*(1-h/24))).toFixed(1)+" GB"}
 ["n","r","h"].forEach(i=>$(i).oninput=c);c();
+function g(){const n=+$("gn").value,h=+$("gh").value,r=+$("gr").value,use=56;
+const a=Math.ceil(n*r/use),b=Math.max(1,Math.ceil((n*r*Math.min(1,2*h/24)+n*.007)/use));
+const kwh=(a-b)*150*8760/1000;$("gnv").textContent=n;$("ghv").textContent=h+" h";$("grv").textContent=r+" GB";
+$("gma").textContent=a;$("gmb").textContent=b;$("gkwh").textContent=Math.round(kwh).toLocaleString("en")+" kWh";$("gco2").textContent=(kwh*.25/1000).toFixed(1)+" t"}
+["gn","gh","gr"].forEach(i=>$(i).oninput=g);g();
 document.querySelectorAll("#tabs .btn").forEach(t=>t.onclick=()=>{document.querySelectorAll("#tabs .btn").forEach(x=>x.classList.toggle("on",x===t));$("cmd").textContent=t.dataset.c;$("note").textContent=t.dataset.n});
 $("copy").onclick=e=>navigator.clipboard&&navigator.clipboard.writeText($("cmd").textContent).then(()=>{e.target.textContent="Copied!";setTimeout(()=>e.target.textContent="Copy",1500)});
 </script>

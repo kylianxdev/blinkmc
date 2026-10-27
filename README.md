@@ -88,6 +88,23 @@ Then start the server with `start-blink.bat`. More options in [Install](#7-insta
 
 All three are tested on every change with a real Paper server (GitHub Actions).
 
+## Greener, even if your VPS has the RAM anyway
+
+An empty Paper server still ticks 20 times a second, all day: about **3 % of a CPU core** for an
+empty world (measured on our server). Frozen, it uses nothing. The bigger win is for hosts:
+servers are packed onto machines by RAM, and a server asleep for 10 minutes needs 7 MB instead of
+3 GB. An example, with the assumptions written out:
+
+| | Always on | With Blink |
+|---|---|---|
+| 200 servers, 3 GB each, played 3 hours a day | 600 GB: 11 machines | about 151 GB: 3 machines |
+| Energy (150 W per machine, day and night) | | about 10,500 kWh a year less |
+| CO2 (0.25 kg per kWh, about the EU grid average) | | about 2.6 tonnes a year less |
+
+(Machines with 64 GB, 56 GB usable. With Blink we count twice the average awake share, for
+evenings when everyone plays, plus 7 MB per sleeping server. An estimate, not a promise; the
+website has a calculator for your own numbers.)
+
 ## Networks: BungeeCord and Velocity
 
 Put a Blink in front of every backend server, and point the proxy at Blink's ports. A player who
