@@ -646,6 +646,19 @@ async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
         }
     };
 
+    // Before freezing: run the hook (save the world, for example), then make sure nobody joined
+    // while it ran. The monitor waits for us, so ask the server for a fresh status first.
+    if let Some(ref command) = config.server.before_freeze {
+        run_before_freeze(config, command).await;
+        if let Ok(Some(status)) = crate::monitor::poll_server(config, server, config.server.address).await {
+            server.update_status(config, Some(status)).await;
+        }
+        if !server.should_sleep(config).await {
+            info!(target: "lazymc", "Not freezing, someone joined");
+            return true;
+        }
+    }
+
     if !os::freeze(pid) {
         error!(target: "lazymc", "Failed to send freeze signal to server process.");
     }
@@ -658,6 +671,22 @@ async fn freeze_server_signal(config: &Config, server: &Server) -> bool {
         .await;
 
     true
+}
+
+/// Run the before_freeze command in the server directory, at most 60 seconds.
+#[cfg(unix)]
+async fn run_before_freeze(config: &Config, command: &str) {
+    let mut cmd = tokio::process::Command::new("sh");
+    cmd.arg("-c").arg(command);
+    if let Some(dir) = ConfigServer::server_directory(config) {
+        cmd.current_dir(dir);
+    }
+    match tokio::time::timeout(Duration::from_secs(60), cmd.status()).await {
+        Ok(Ok(status)) if status.success() => {}
+        Ok(Ok(status)) => warn!(target: "lazymc", "before_freeze command failed ({})", status),
+        Ok(Err(err)) => warn!(target: "lazymc", "Could not run before_freeze command: {}", err),
+        Err(_) => warn!(target: "lazymc", "before_freeze command took longer than 60 seconds"),
+    }
 }
 
 /// Unfreeze server by sending SIGCONT signal.

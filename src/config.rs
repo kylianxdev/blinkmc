@@ -179,6 +179,12 @@ pub struct Server {
     #[serde(default = "bool_true")]
     pub freeze_process: bool,
 
+    /// Command to run (and wait for, at most 60 seconds) right before the server is frozen, in the
+    /// server directory. For example to make the server save its world. If a player joins while it
+    /// runs, the server is not frozen.
+    #[serde(default)]
+    pub before_freeze: Option<String>,
+
     /// Immediately wake server when starting lazymc.
     #[serde(default)]
     pub wake_on_start: bool,
