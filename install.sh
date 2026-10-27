@@ -84,9 +84,9 @@ echo "  server jar: $JAR, runs as: $OWNER"
 
 # the public port: from before Blink, else from an earlier Blink install, else server.properties (lazymc moves the
 # real server to another port in there, so a second run must not take that one)
-PORT=$(sed -n 's/^server-port=//p' server.properties.before-blink 2>/dev/null | tail -1)
-[ -n "$PORT" ] || PORT=$(sed -n 's/^address = "0.0.0.0:\([0-9]*\)"/\1/p' lazymc.toml 2>/dev/null | head -1)
-[ -n "$PORT" ] || PORT=$(sed -n 's/^server-port=//p' server.properties 2>/dev/null | tail -1)
+PORT=$(sed -n 's/^server-port=//p' server.properties.before-blink 2>/dev/null | tail -1 || true)
+[ -n "$PORT" ] || PORT=$(sed -n 's/^address = "0.0.0.0:\([0-9]*\)"/\1/p' lazymc.toml 2>/dev/null | head -1 || true)
+[ -n "$PORT" ] || PORT=$(sed -n 's/^server-port=//p' server.properties 2>/dev/null | tail -1 || true)
 PORT=${PORT:-25565}
 if systemctl is-active -q "$NAME" 2>/dev/null; then
   step "Stopping the running $NAME service"
