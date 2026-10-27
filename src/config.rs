@@ -218,8 +218,9 @@ pub struct Server {
     pub wake_whitelist: bool,
 
     /// Without a whitelist: only players who joined before (usercache.json) can wake the server, so
-    /// the bots that scan the internet all day can't. Anyone can while nobody joined yet.
-    #[serde(default = "bool_true")]
+    /// the bots that scan the internet all day can't (new players can't either). Off by default: a
+    /// bot that wakes the server only keeps it awake until the next freeze.
+    #[serde(default)]
     pub wake_known_players: bool,
 
     /// Block banned IPs as listed in banned-ips.json in server directory.
