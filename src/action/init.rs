@@ -52,7 +52,8 @@ pub fn invoke(matches: &ArgMatches) {
     let sleep: u32 = *matches.get_one::<u32>("sleep").unwrap();
     let threads: usize = *matches.get_one::<usize>("threads").unwrap();
     let java = java_path;
-    let java = if java.is_absolute() { format!(" JAVA={}", java.display()) } else { String::new() };
+    // forward slashes: the command line treats a backslash as an escape (Windows accepts both)
+    let java = if java.is_absolute() { format!(" JAVA={}", java.display().to_string().replace('\\', "/")) } else { String::new() };
     // real player IPs need Paper's proxy-protocol setting, which exists after the first start
     let proxy = dir.join("config").join("paper-global.yml").is_file();
 

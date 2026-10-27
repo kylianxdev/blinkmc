@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use futures::FutureExt;
 use minecraft_protocol::version::v1_20_3::status::ServerStatus;
 use tokio::process::Command;
 use tokio::sync::watch;
@@ -246,7 +245,12 @@ impl Server {
     ///
     /// This should not be called directly.
     fn spawn_server_task(config: Arc<Config>, server: Arc<Server>) {
-        tokio::spawn(invoke_server_cmd(config, server).map(|_| ()));
+        tokio::spawn(async move {
+            // If the server could not even be started, go back to sleeping instead of waiting for it
+            if invoke_server_cmd(config.clone(), server.clone()).await.is_err() {
+                server.update_state(State::Stopped, &config).await;
+            }
+        });
     }
 
     /// Stop running server.
