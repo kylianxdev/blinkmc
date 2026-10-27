@@ -1,0 +1,10 @@
+[Unit]
+Description=Blink: move the memory of the frozen Minecraft server %i to zswap and swap
+After=%i.service
+
+[Service]
+ExecStart=/opt/blinkmc/blink-freeze-helper.sh %i
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
