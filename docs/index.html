@@ -349,12 +349,16 @@ footer a{color:#b8f08f}
 
 <script>
 const $=id=>document.getElementById(id);
-const S=[[2600,"The server is asleep. A friend clicks Join.","\u{1F4A4} sleeping • join to wake it up","0/20",6,"7 MB","0 %",0,"#7c9cff",0],
-[900,"Blink thaws the server...","⌛ waking up...","0/20",6,"7 MB","0 %",0,"#7c9cff",1],
-[3200,"In the world, about a second later.","welcome back!","1/20",62,"1.9 GB","4 %",1,"#5dc93f",0],
-[2400,"Everyone leaves. 30 s later: saved and frozen.","welcome back!","0/20",62,"1.9 GB","1 %",1,"#5dc93f",0],
-[1200,"Memory out of RAM, CPU to zero.","\u{1F4A4} sleeping • join to wake it up","0/20",6,"7 MB","0 %",0,"#7c9cff",0]];
-let k=0;(function d(){const s=S[k];$("step").textContent=s[1];$("motd").textContent=s[2];$("pl").textContent=s[3];$("fill").style.width=s[4]+"%";$("fill").style.background=s[8];$("ram").textContent=s[5];$("cpu").textContent=s[6];$("ping").classList.toggle("on",!!s[7]);$("join").classList.toggle("on",!!s[9]);k=(k+1)%S.length;setTimeout(d,s[0])})();
+// [ms on screen, text, motd, players, bar %, RAM, CPU, ping on, bar color, join pressed, real time?]
+const S=[[2600,"Asleep for a few minutes. A friend clicks Join.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",18,"0.3 GB","0 %",0,"#7c9cff",0,""],
+[700,"Waking up... (real speed)","\u231B waking up...","0/20",18,"0.3 GB","0 %",0,"#7c9cff",1,"t"],
+[3000,"In the world after 0.7 s.","welcome back!","1/20",62,"1.9 GB","4 %",1,"#5dc93f",0,""],
+[2400,"Everyone leaves. 30 s later: saved and frozen.","welcome back!","0/20",62,"1.9 GB","1 %",1,"#5dc93f",0,"\u23E9 30 s"],
+[2000,"Frozen: compressed in RAM. A join now: under a second.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",18,"0.3 GB","0 %",0,"#7c9cff",0,""],
+[2600,"10 minutes later: deep sleep, memory on disk. A join now takes about 3 s.","\u{1F4A4} sleeping \u2022 join to wake it up","0/20",3,"7 MB","0 %",0,"#7c9cff",0,"\u23E9 10 min"]];
+let k=0;(function d(){const s=S[k];$("motd").textContent=s[2];$("pl").textContent=s[3];$("fill").style.width=s[4]+"%";$("fill").style.background=s[8];$("ram").textContent=s[5];$("cpu").textContent=s[6];$("ping").classList.toggle("on",!!s[7]);$("join").classList.toggle("on",!!s[9]);
+if(s[10]=="t"){const t0=performance.now();(function tick(){const e=Math.min(.7,(performance.now()-t0)/1000);$("step").textContent=s[1]+" "+e.toFixed(1)+" s";if(e<.7)requestAnimationFrame(tick)})()}else $("step").textContent=(s[10]?s[10]+" \u2022 ":"")+s[1];
+k=(k+1)%S.length;setTimeout(d,s[0])})();
 const W=[..."\u{1F3DD}\u{1F3F0}⛏\u{1F30B}\u{1F332}\u{1F3DC}❄\u{1F338}\u{1F5FF}\u{1F344}⚓\u{1F409}"].map(e=>{const i=document.createElement("i");i.className="slot";i.textContent=e;$("worlds").appendChild(i);return i});
 (function w(){W.forEach(i=>i.classList.remove("a"));for(let j=0;j<(2+Math.random()*2|0);j++)W[Math.random()*W.length|0].classList.add("a");setTimeout(w,2600)})();
 function c(){const n=+$("n").value,r=+$("r").value,h=+$("h").value;$("nv").textContent=n;$("rv").textContent=r+" GB";$("hv").textContent=h+" h";$("oa").textContent=n*r+" GB";$("ob").textContent=(n*(r*h/24+.007*(1-h/24))).toFixed(1)+" GB"}
