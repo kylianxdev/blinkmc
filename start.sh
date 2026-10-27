@@ -7,7 +7,7 @@
 #  3. No -XX:+AlwaysPreTouch: touching the whole heap up front costs seconds.
 #
 # The cache belongs to exactly one Paper build and one Java build. After an update this script
-# notices it: the first start is a normal (slow) training run, and the cache is built when it stops.
+# notices it: the first start is a normal (slow) training run, the start after it builds the cache.
 #
 # Put this file next to paper.jar (or set JAR). Needs Java 26 or newer (see the README for why).
 cd "$(dirname "$0")"
@@ -53,20 +53,19 @@ P
 fi
 CP="$(cat classpath.txt)"
 
+# A finished training run left paper.aot.config: build the cache from it now (a few seconds).
+# AOTStreamableObjects: without it Minecraft's big MethodType table does not fit
+# ("Cannot archive the sub-graph ... size 262160") and the JVM writes an empty cache.
+if [ -s paper.aot.config ] && [ ! -s paper.aot ]; then
+  "$JAVA" $FLAGS -XX:+UnlockDiagnosticVMOptions -XX:+AOTStreamableObjects -XX:AOTMode=create \
+    -XX:AOTConfiguration=paper.aot.config -XX:AOTCache=paper.aot -cp "$CP" >/dev/null 2>&1 || rm -f paper.aot
+  rm -f paper.aot.config
+fi
+
 if [ -s paper.aot ]; then
   exec "$JAVA" $FLAGS -XX:AOTCache=paper.aot -cp "$CP" $MAIN --nogui
 fi
 
-# Training run: Java writes down what Paper uses. The console keeps working (<&0), and a
-# SIGTERM (from lazymc or systemd) is passed on so Paper saves and stops normally.
-"$JAVA" $FLAGS -XX:AOTMode=record -XX:AOTConfiguration=paper.aot.config -cp "$CP" $MAIN --nogui <&0 &
-pid=$!
-trap 'kill -TERM $pid' TERM INT
-wait $pid; wait $pid
-trap - TERM INT
-
-# Build the cache. AOTStreamableObjects: without it Minecraft's big MethodType table does not fit
-# ("Cannot archive the sub-graph ... size 262160") and the JVM writes an empty cache.
-nice "$JAVA" $FLAGS -XX:+UnlockDiagnosticVMOptions -XX:+AOTStreamableObjects -XX:AOTMode=create \
-  -XX:AOTConfiguration=paper.aot.config -XX:AOTCache=paper.aot -cp "$CP" >/dev/null 2>&1 || rm -f paper.aot
-rm -f paper.aot.config
+# Training run: Java writes down what Paper uses and saves it when the server stops; the next start
+# turns it into the cache. "exec", so lazymc's signals (freeze, thaw, stop) reach Java itself.
+exec "$JAVA" $FLAGS -XX:AOTMode=record -XX:AOTConfiguration=paper.aot.config -cp "$CP" $MAIN --nogui
