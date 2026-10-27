@@ -23,6 +23,9 @@
 joins.** The sleeping server gives most of its memory back to the machine, the server list keeps
 showing your MOTD and icon, and players don't install anything. Stock Paper, stock Java, no mods.
 
+Measured on our server (6 vCPU VPS, Paper 26.3, an 838 MB world). Your numbers depend on your
+hardware; [`tools/`](tools) has the scripts to measure them yourself.
+
 | | Stock Paper | With Blink |
 |---|---|---|
 | Join on a sleeping server until the real server takes over | not possible | **0.1 to 0.4 s** |
@@ -36,17 +39,56 @@ sleeps, saves and freezes the server 30 seconds after the last player left, move
 RAM, and wakes it up as soon as someone joins. It is built on
 [lazymc](https://github.com/timvisee/lazymc) by Tim Visée.
 
-## Install in one command
+**If Blink saves you RAM (or your friends' patience), a star helps other server owners find it.** ⭐
 
-In the folder with your `paper.jar` (stop your server first):
+## Who it is for
+
+* **A server for you and your friends.** It's empty most of the day. While it sleeps it costs a few
+  hundred MB instead of gigabytes, so a smaller VPS does, or one machine runs more servers.
+* **Hosting on your own PC.** A frozen server uses no CPU at all and hands its memory back, so your
+  games and browser get it, and the machine can idle instead of ticking an empty world all day.
+* **Several servers on one machine.** Survival, creative, a modded test world, an event map: only
+  the ones people are on stay awake.
+* **Behind BungeeCord or Velocity** (experimental): put a Blink in front of each backend server, and
+  backend servers nobody is on sleep. Let us know how it works for you.
+
+## Install
+
+Stop your server and go to the folder with your `paper.jar`.
+
+**Linux, full install** (a service, swap and zswap so a frozen server leaves RAM; needs root):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash
 ```
 
-That's it. It installs Java 26 if needed, sets everything up, starts your server as a service and
-prints how to reach the console. Your own files stay as they are, and `--uninstall` undoes
-everything. More options in [Install](#7-install).
+**Linux or macOS, portable** (no root, changes nothing on your system; just `blink` in the folder):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | bash -s -- --portable
+./blink start
+```
+
+**Windows** (PowerShell, no administrator rights needed):
+
+```powershell
+irm https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.ps1 | iex
+```
+
+Then start the server with `start-blink.bat`. More options in [Install](#7-install).
+
+| | Freeze and wake | Memory of a frozen server |
+|---|---|---|
+| Linux | yes (SIGSTOP) | moved to zswap and swap by Blink (full install) |
+| macOS | yes (SIGSTOP) | compressed by macOS itself when it needs RAM |
+| Windows | yes (NtSuspendProcess) | handed to Windows' memory compression by Blink |
+
+All three are tested on every change with a real Paper server (GitHub Actions).
+
+**Safe for your world?** Blink saves the world before every freeze and lets Paper save and stop
+normally when you stop it, also while frozen. Nothing in Paper or your world is changed. Still: try
+it on a copy or with a fresh backup first, like any tool that runs your server. `--uninstall` puts
+everything back.
 
 ## Blink vs lazymc
 
@@ -146,7 +188,7 @@ Setup: Paper 26.3 build 200, OpenJDK 25.0.4 and 26.0.2 (Ubuntu packages), 6 vCPU
 `libraries/`, then loads them in **its own class loader**. The AOT cache only stores classes from the
 normal class path, so with paperclip almost nothing of Minecraft can be cached.
 
-Blink's Paper launcher (`src/paper.sh`) reads `META-INF/versions.list` and `META-INF/libraries.list` from `paper.jar`, writes
+Blink's Paper launcher (`src/launcher.rs`) reads `META-INF/versions.list` and `META-INF/libraries.list` from `paper.jar`, writes
 `classpath.txt` and starts `org.bukkit.craftbukkit.Main` directly. After a Paper update it first runs
 `java -Dpaperclip.patchonly=true -jar paper.jar`, which unpacks the new version and exits.
 
@@ -325,13 +367,16 @@ regions. `tools/benchmark.sh` does the full run.
 * **Disk**: 230 MB for the cache, plus a swap file.
 * **Diagnostic flag.** If `AOTStreamableObjects` changes in a later Java, the cache build fails and
   the launcher simply starts without a cache.
-* **One server per Blink**, no Velocity or BungeeCord networks.
-* **Linux only** for freezing (it uses signals and cgroups).
+* **One server per Blink.** Behind BungeeCord or Velocity that means one Blink per backend server
+  (not tested much yet).
+* **Moving a frozen server's memory out of RAM** is strongest on Linux (zswap and swap, set up by the
+  full install). On macOS and Windows the OS compresses it itself; it stays a bit bigger.
 
 ## 7. Install
 
-Linux with systemd (Ubuntu, Debian and most others), x86_64, and a Paper server (or a Paper fork
-such as Purpur). Stop your server, go to its folder and run:
+The commands are at the top. The full install needs Linux with systemd (Ubuntu, Debian and most
+others), on x86_64 or ARM, and a Paper server (or a Paper fork such as Purpur). Stop your server, go
+to its folder and run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash
@@ -351,6 +396,7 @@ curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh 
 | `--threads N` | 1 | threads for the players' traffic; 2 to 4 for hundreds of players |
 | `--name NAME` | minecraft | systemd service name (use another one per server) |
 | `--swap SIZE` | heap + 2G | swap file, only when there is no swap yet |
+| `--portable` | | no root, no service, no system changes (always on macOS) |
 | `--uninstall` | | undo everything for this server |
 
 What it does, step by step:
@@ -379,6 +425,15 @@ until the next freeze; `wake_known_players = true` in `blink.toml` stops them, b
 
 **All settings** are in [`res/blink.toml`](res/blink.toml), with an explanation for each.
 
+**Anonymous usage count.** Once a day Blink downloads a 1 byte file from this project's GitHub
+releases, and GitHub counts the downloads. That is the only way we know how many servers use
+Blink. Nothing is sent: no server name, no players, no settings. Turn it off with
+`usage_stats = false` in `blink.toml` or `DO_NOT_TRACK=1`; Blink says at start whether it is on.
+
+**Without the installer.** Put the `blink` binary for your OS from the
+[releases](https://github.com/kylianxdev/blinkmc/releases/latest) in your server folder, run
+`blink init` (writes `blink.toml`) and `blink start`.
+
 **BlueMap (optional).** BlueMap's web server would freeze with the server. Run BlueMap's CLI as its
 own web server instead (`systemd/bluemap-web.service`, see section 3.8).
 
@@ -386,7 +441,7 @@ own web server instead (`systemd/bluemap-web.service`, see section 3.8).
 [latest release](https://github.com/kylianxdev/blinkmc/releases/latest). To build it:
 
 ```bash
-rustup target add x86_64-unknown-linux-musl
+cargo build --release                      # any OS; the release build for Linux uses musl:
 cargo build --release --target x86_64-unknown-linux-musl
 sudo BLINK_BINARY=target/x86_64-unknown-linux-musl/release/blink bash install.sh
 ```
@@ -396,12 +451,15 @@ sudo BLINK_BINARY=target/x86_64-unknown-linux-musl/release/blink bash install.sh
 | File | What |
 |---|---|
 | `src/` | Blink (Rust, based on lazymc); `src/blink.rs` has the console, save and memory reclaim |
-| `src/paper.sh` | The built in Paper launcher (AOT cache, watchdog, PROXY protocol) |
+| `src/launcher.rs` | The built in Paper launcher (AOT cache, watchdog, PROXY protocol), every OS |
+| `src/action/init.rs` | `blink init`: writes `blink.toml` for the server in a folder |
 | `res/blink.toml` | All settings, explained |
-| `install.sh` | The one command installer (and `--uninstall`) |
+| `install.sh`, `install.ps1` | Installers for Linux and macOS, and for Windows |
+| `.github/workflows/build.yml` | Builds for 5 platforms and tests a real server on Linux, macOS and Windows |
 | `systemd/bluemap-web.service` | Optional: BlueMap's web server, separate from the game server |
+| `tools/smoke-test.py` | End to end test: start, freeze, wake up, stop (what CI runs) |
 | `tools/benchmark.sh` | Cold starts, memory with simulated players, freeze and wake |
-| `tools/measure-startup.sh` | Time until "Done" |
+| `tools/proxy-bench/` | Throughput of the proxy |
 | `tools/status-ping.py` | Server list ping, or a test join that wakes the server |
 | `docs/` | The website |
 

@@ -104,6 +104,10 @@ pre .c { color: #6b76a8; }
 .install pre { flex: 1 1 520px; margin: 0; font-size: 15px; color: var(--green2); display: flex; align-items: center; }
 .btn.copy { cursor: pointer; font-size: 11px; }
 
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.tab { font: 600 14px Inter, sans-serif; color: var(--muted); background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; cursor: pointer; }
+.tab.on { color: #0b1026; background: var(--green); border-color: #000; }
+
 /* faq */
 details { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; }
 summary { cursor: pointer; font-weight: 700; list-style: none; }
@@ -137,6 +141,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <nav>
       <a class="brand" href="#"><img src="assets/logo.svg" alt="">Blink</a>
       <div class="links">
+        <a href="#who">Who it is for</a>
         <a href="#how">How it works</a>
         <a href="#numbers">Numbers</a>
         <a href="#vs">vs lazymc</a>
@@ -150,7 +155,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
       <p class="lead">Blink makes a Minecraft Paper server go to sleep when nobody plays and gives your RAM back. When a friend joins, it is awake again in a tenth of a second. The server list keeps showing your MOTD the whole time.</p>
       <div class="cta">
         <a class="btn" href="#install">Get started</a>
-        <a class="btn alt" href="https://github.com/kylianxdev/blinkmc#readme">Read the write-up</a>
+        <a class="btn alt" href="https://github.com/kylianxdev/blinkmc">&#9733; Star on GitHub</a>
       </div>
     </div>
   </div>
@@ -163,6 +168,17 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <div class="stat"><b>-94%</b><span>RAM of a sleeping server: 0.19 GB instead of 3 GB</span></div>
     <div class="stat"><b>1.5 MB</b><span>RAM for Blink itself, one small program, no mods</span></div>
   </div>
+  <p class="note" style="text-align:center;margin-top:14px">Measured on our server (6 vCPU VPS, Paper 26.3). Yours depends on your hardware; the <a href="https://github.com/kylianxdev/blinkmc/tree/main/tools">scripts to measure it</a> are in the repo.</p>
+
+  <section id="who">
+    <div class="kicker">WHO IT IS FOR</div>
+    <h2>Servers that are empty most of the day</h2>
+    <div class="states">
+      <div class="state"><span class="tag t-awake">FRIENDS</span><h3>A server for your friends</h3><p>Empty most of the day. Asleep it costs a few hundred MB instead of gigabytes: a smaller VPS does, or one machine runs more servers.</p></div>
+      <div class="state"><span class="tag t-frozen">AT HOME</span><h3>Hosting on your own PC</h3><p>A frozen server uses no CPU and hands its memory back, so your games and browser get it, and your PC can idle instead of ticking an empty world all day.</p></div>
+      <div class="state"><span class="tag t-cold">NETWORKS</span><h3>Several servers, one machine</h3><p>Survival, creative, an event map, servers behind BungeeCord or Velocity (experimental): only the ones people are on stay awake.</p></div>
+    </div>
+  </section>
 
   <section id="how">
     <div class="kicker">HOW IT WORKS</div>
@@ -224,7 +240,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <div class="kicker">WHAT MADE IT FAST</div>
     <h2>Five tricks</h2>
     <div class="steps">
-      <div class="step"><div><h3>Freeze instead of stop</h3><p>A paused JVM keeps all its state, so waking it up is instant. Blink first lets the heap shrink, then pushes the paused server's memory into zswap (zstd) and swap: 0.3 GB instead of 3 GB. Paper's watchdog is told not to panic about the time it was asleep.</p></div></div>
+      <div class="step"><div><h3>Freeze instead of stop</h3><p>A paused JVM keeps all its state, so waking it up is instant. Blink first lets the heap shrink, then pushes the paused server's memory into zswap (zstd) and swap: 0.19 GB instead of 3 GB. Paper's watchdog is told not to panic about the time it was asleep.</p></div></div>
       <div class="step"><div><h3>Start Paper without paperclip</h3><p>Paper's launcher loads the server in its own class loader, which Java's AOT cache cannot store. Blink reads the class path from <code>paper.jar</code> and starts <code>org.bukkit.craftbukkit.Main</code> directly.</p></div></div>
       <div class="step"><div><h3>Java's AOT cache with streamable objects</h3><p>A training run records what Paper loads, links and runs. On Java 25 Minecraft's method type table is too big for the cache. Java 26's streamable AOT objects make the full 230 MB cache fit.</p></div></div>
       <div class="step"><div><h3>One tiny program</h3><p>Blink is built on lazymc, fixed for current Paper and rebuilt to be small: 1.5 MB of RAM instead of 5.7 MB, 2 threads instead of 10, one static 1.6 MB file. It saves the world before every freeze, moves the frozen server's memory out of RAM itself, and still passes about 1 GB/s of player traffic on one thread.</p></div></div>
@@ -236,17 +252,23 @@ footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wr
     <div class="kicker">INSTALL</div>
     <h2>Get started</h2>
     <p class="sub">One command. Stop your server, go to the folder with your <code>paper.jar</code> and paste this:</p>
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-cmd="curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash" data-note="Full install: a systemd service, plus swap and zswap so a frozen server leaves RAM. Needs root.">Linux</button>
+      <button class="tab" data-cmd="curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | bash -s -- --portable" data-note="No root, no system changes: blink and blink.toml in the server folder. Then run ./blink start (in tmux or screen to keep it running).">Linux / macOS, no root</button>
+      <button class="tab" data-cmd="irm https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.ps1 | iex" data-note="PowerShell, no administrator rights. Then start your server with start-blink.bat.">Windows</button>
+    </div>
     <div class="install">
       <pre id="cmd">curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash</pre>
       <button class="btn copy" id="copy" type="button">Copy</button>
     </div>
+    <p class="note" id="cmd-note">Full install: a systemd service, plus swap and zswap so a frozen server leaves RAM. Needs root.</p>
     <div class="steps" style="margin-top:22px">
-      <div class="step"><div><h3>It sets everything up</h3><p>Java 26 if you don't have it, Blink, swap and zswap, and a systemd service. Your MOTD and version are read from your server. Your own files stay as they are, and <code>--uninstall</code> undoes it all.</p></div></div>
+      <div class="step"><div><h3>It sets everything up</h3><p>Blink, and Java 26 if you don't have it (Linux). Your MOTD and version are read from your server. Your world and settings stay as they are, and <code>--uninstall</code> undoes it all.</p></div></div>
       <div class="step"><div><h3>Play</h3><p>Players join on the same address as always. 30 seconds after the last player leaves, the server saves and freezes. The next join wakes it up.</p></div></div>
       <div class="step"><div><h3>Tweak it (optional)</h3>
 <pre><span class="c"># options go after "bash -s --"</span>
 curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash -s -- --heap 6G --sleep 120</pre>
-<p style="margin-top:10px">Linux with systemd on x86_64, Paper or a Paper fork. All options are in the <a href="https://github.com/kylianxdev/blinkmc#7-install">README</a>.</p></div></div>
+<p style="margin-top:10px">Linux, macOS and Windows, with Paper or a Paper fork. Every change is tested on all three with a real server. All options are in the <a href="https://github.com/kylianxdev/blinkmc#7-install">README</a>.</p></div></div>
     </div>
   </section>
 
@@ -256,9 +278,11 @@ curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh 
     <details><summary>Do players need to install anything?</summary><p>No. It is a normal Minecraft server for them. The only thing they may notice is a different MOTD while the server sleeps.</p></details>
     <details><summary>Do I need a whitelist?</summary><p>No. Without a whitelist anyone can wake the server, also new players. A bot that wakes it only keeps it awake until the next freeze, 30 seconds later. With the whitelist on, only whitelisted players can wake it. Want to keep bots out without a whitelist? Set <code>wake_known_players = true</code>: then only players who joined before can.</p></details>
     <details><summary>Does it work for big servers?</summary><p>Yes. One thread passes about 1 GB/s of player traffic, enough for well over a thousand players; <code>--threads 4</code> doubles that for 56 kB of extra memory. A big server is rarely empty, so it simply stays awake.</p></details>
-    <details><summary>Is a frozen server safe for my world?</summary><p>Blink makes Paper save the world right before it freezes, and checks that nobody joined meanwhile. Stopping the service thaws the server first and lets Paper save and shut down normally.</p></details>
+    <details><summary>Is a frozen server safe for my world?</summary><p>Blink makes Paper save the world right before it freezes, and checks that nobody joined meanwhile. Stopping it thaws the server first and lets Paper save and shut down normally. Nothing in Paper or your world is changed. Still: try it with a fresh backup first, like any tool that runs your server.</p></details>
+    <details><summary>Does it need root or change my system?</summary><p>Only the full Linux install: it adds a service, a swap file and zswap, so a frozen server's memory can leave RAM. The portable install (Linux, macOS) and the Windows install change nothing outside your server folder.</p></details>
+    <details><summary>Does Blink send anything?</summary><p>Once a day it downloads a 1 byte file from Blink's GitHub releases; GitHub counts the downloads, which is how we know how many servers use Blink. Nothing is sent. Turn it off with <code>usage_stats = false</code> or <code>DO_NOT_TRACK=1</code>.</p></details>
     <details><summary>What about plugins, dynmap or BlueMap?</summary><p>Plugins freeze and wake with the server. BlueMap's web server can run on its own, so the web map stays online while the server sleeps. The write-up shows how.</p></details>
-    <details><summary>Can I undo it?</summary><p>Yes: run the same command with <code>bash -s -- --uninstall</code>. Your own <code>start.sh</code> and <code>server.properties</code> come back.</p></details>
+    <details><summary>Can I undo it?</summary><p>Yes: run the same command with <code>bash -s -- --uninstall</code> (or delete <code>blink</code> and <code>blink.toml</code> after a portable install). Your own <code>server.properties</code> comes back.</p></details>
     <details><summary>Does it work with Spigot, Fabric or Forge?</summary><p>The sleeping part works with any Java server: set <code>command</code> in <code>blink.toml</code>. The fast cold start is written for Paper and its forks (Purpur, Folia, Leaf), because it reads Paper's launcher lists.</p></details>
   </section>
 </div>
@@ -289,6 +313,12 @@ document.getElementById("copy").addEventListener("click", e => {
     e.target.textContent = "Copied!"; setTimeout(() => e.target.textContent = "Copy", 1500);
   });
 });
+// install tabs
+document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t === tab));
+  document.getElementById("cmd").textContent = tab.dataset.cmd;
+  document.getElementById("cmd-note").textContent = tab.dataset.note;
+}));
 // bars grow when the chart scrolls into view
 const fills = document.querySelectorAll(".fill");
 const grow = () => fills.forEach(f => f.style.width = Math.max(1, f.dataset.w / 13.2 * 100) + "%");
