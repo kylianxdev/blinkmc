@@ -23,7 +23,12 @@ const MAIN: &str = "org.bukkit.craftbukkit.Main";
 pub struct Launch {
     pub java: PathBuf,
     pub args: Vec<String>,
+    /// Whether Paper accepts the PROXY protocol on this start (see `prepare_server_files`).
+    pub proxy: bool,
 }
+
+/// The Java version the AOT cache needs (streamable AOT objects, JEP 516).
+const AOT_JAVA: u32 = 26;
 
 /// Settings from `blink-paper KEY=VALUE ...`.
 pub fn settings(args: &[String]) -> HashMap<String, String> {
@@ -51,6 +56,9 @@ pub fn find_java(settings: &HashMap<String, String>) -> PathBuf {
         "C:\\Program Files\\Java",
         "C:\\Program Files\\Eclipse Adoptium",
         "C:\\Program Files\\Microsoft",
+        "C:\\Program Files\\Zulu",
+        "C:\\Program Files\\BellSoft",
+        "C:\\Program Files\\Amazon Corretto",
     ];
     let mut found: Vec<(u32, PathBuf)> = vec![];
     for root in roots {
@@ -72,6 +80,61 @@ pub fn find_java(settings: &HashMap<String, String>) -> PathBuf {
     }
     found.sort();
     found.pop().map(|(_, java)| java).unwrap_or_else(|| PathBuf::from(exe))
+}
+
+/// The major version of a Java ("26" from `openjdk version "26.0.2"`, "8" from "1.8.0_402").
+pub fn java_major(java: &Path) -> Option<u32> {
+    let out = Command::new(java).arg("-version").output().ok()?;
+    let text = String::from_utf8_lossy(&out.stderr).to_string() + &String::from_utf8_lossy(&out.stdout);
+    let version = text.split('"').nth(1)?;
+    let mut parts = version.split(|c: char| !c.is_ascii_digit()).filter(|p| !p.is_empty());
+    match parts.next()?.parse().ok()? {
+        1 => parts.next()?.parse().ok(),
+        major => Some(major),
+    }
+}
+
+/// Blink's settings in the server's own files, for every kind of server (only what exists is
+/// changed, `blink restore` puts the defaults back):
+///  * A frozen server sees a gap of minutes or days when it wakes up. Paper's watchdog would call
+///    that a hang and kill it, and restart-on-crash would start a second server outside Blink.
+///    (Vanilla's own watchdog, max-tick-time, is turned off in server.properties.)
+///  * Paper's proxies.proxy-protocol follows `send_proxy_v2`, also when that is turned off later.
+///  * spark (bundled with Paper) samples the CPU all the time in the background; on a server that
+///    mostly sleeps that is wasted work. /spark profiler still works when you need it.
+///
+/// Returns whether to send the PROXY header to the server on this start. A new Paper server writes
+/// paper-global.yml on its first start: until then it doesn't accept the header.
+pub fn prepare_server_files(dir: &Path, proxy_protocol: bool, paper: bool) -> bool {
+    let spigot = dir.join("spigot.yml");
+    if paper && !spigot.exists() {
+        // a new server: write the two settings now, Spigot adds the rest on its first start
+        let _ = fs::write(&spigot, "settings:\n  timeout-time: 1728000\n  restart-on-crash: false\n");
+    }
+    set_yaml(&spigot, &[("  timeout-time:", "1728000"), ("  restart-on-crash:", "false")]);
+
+    let global = dir.join("config").join("paper-global.yml");
+    set_yaml(&global, &[("  early-warning-delay:", "1728000000"), ("  proxy-protocol:", if proxy_protocol { "true" } else { "false" })]);
+
+    let spark = dir.join("plugins").join("spark").join("config.json");
+    if let Ok(text) = fs::read_to_string(&spark) {
+        if text.contains("\"backgroundProfiler\": true") {
+            let _ = fs::write(&spark, text.replace("\"backgroundProfiler\": true", "\"backgroundProfiler\": false"));
+        }
+    }
+
+    if !proxy_protocol {
+        return false;
+    }
+    match yaml_value(&global, "  proxy-protocol:") {
+        Some(value) => value == "true",
+        // not Paper (Fabric with a PROXY protocol mod, for example): trust the setting
+        None if !paper && !global.exists() => true,
+        None => {
+            info!(target: "lazymc", "Players' real IPs (PROXY protocol) from the next start on: Paper writes its config on this first start");
+            false
+        }
+    }
 }
 
 /// Prepare the server folder and return the Java command to start Paper with.
@@ -106,34 +169,23 @@ pub fn prepare(dir: &Path, args: &[String], proxy_protocol: bool) -> Result<Laun
         flags.extend(extra.split_whitespace().map(String::from));
     }
 
-    // A frozen server sees a gap of minutes or days when it wakes up. Paper's watchdog would call
-    // that a hang and kill it, and restart-on-crash would start a second server outside Blink.
-    let spigot = dir.join("spigot.yml");
-    if !spigot.exists() {
-        // a new server: write the two settings now, Spigot adds the rest on its first start
-        let _ = fs::write(&spigot, "settings:\n  timeout-time: 1728000\n  restart-on-crash: false\n");
-    }
-    set_yaml(&spigot, &[("  timeout-time:", "1728000"), ("  restart-on-crash:", "false")]);
-    let mut global = vec![("  early-warning-delay:", "1728000000")];
-    if proxy_protocol {
-        // Blink passes on the players' real IP addresses with the PROXY protocol
-        global.push(("  proxy-protocol:", "true"));
-    }
-    set_yaml(&dir.join("config").join("paper-global.yml"), &global);
+    let proxy = prepare_server_files(dir, proxy_protocol, true);
 
-    // spark (bundled with Paper) samples the CPU all the time in the background; on a server that
-    // mostly sleeps that is wasted work. /spark profiler still works when you need it.
-    let spark = dir.join("plugins").join("spark").join("config.json");
-    if let Ok(text) = fs::read_to_string(&spark) {
-        if text.contains("\"backgroundProfiler\": true") {
-            let _ = fs::write(&spark, text.replace("\"backgroundProfiler\": true", "\"backgroundProfiler\": false"));
-        }
+    if !dir.join(&jar).is_file() {
+        return Err(format!("{jar} is not in {}; set JAR= in the command in blink.toml", dir.display()));
     }
 
     // New Paper jar or new Java: unpack Paper, write the class path again, throw the cache away
     let stamp = format!("{} {}", file_stamp(&dir.join(&jar)), file_stamp(&fs::canonicalize(&java).unwrap_or(java.clone())));
     if fs::read_to_string(dir.join("paper.aot.stamp")).ok().as_deref() != Some(stamp.as_str()) {
-        info!(target: "lazymc", "New Paper or Java: unpacking Paper, the first start is a training run for the cache");
+        let major = java_major(&java).ok_or_else(|| {
+            format!("could not run Java ({}). Install Java 26 or set JAVA= in the command in blink.toml", java.display())
+        })?;
+        if major < AOT_JAVA {
+            warn!(target: "lazymc", "Java {major}: Paper starts without the AOT cache (about 13 s instead of 4 s). Java {AOT_JAVA} or newer makes cold starts fast; freezing works with any Java");
+        } else {
+            info!(target: "lazymc", "New Paper or Java: unpacking Paper, the first start is a training run for the cache");
+        }
         let ok = Command::new(&java)
             .args(["-Dpaperclip.patchonly=true", "-jar", &jar])
             .current_dir(dir)
@@ -141,14 +193,30 @@ pub fn prepare(dir: &Path, args: &[String], proxy_protocol: bool) -> Result<Laun
             .map(|s| s.success())
             .unwrap_or(false);
         if !ok {
-            return Err(format!("could not run {} -jar {jar}; is Java 26 installed? Set JAVA= in the command", java.display()));
+            return Err(format!("{} -jar {jar} failed (Java {major}). Does this Paper version need a newer Java?", java.display()));
         }
         fs::write(dir.join("classpath.txt"), class_path(&dir.join(&jar))?).map_err(|e| e.to_string())?;
         let _ = fs::remove_file(dir.join("paper.aot"));
         let _ = fs::remove_file(dir.join("paper.aot.config"));
+        fs::write(dir.join("paper.aot.java"), major.to_string()).map_err(|e| e.to_string())?;
         fs::write(dir.join("paper.aot.stamp"), &stamp).map_err(|e| e.to_string())?;
     }
     let class_path = fs::read_to_string(dir.join("classpath.txt")).map_err(|e| e.to_string())?;
+
+    // The AOT cache needs Java 26; older Javas start Paper without it
+    let major = match fs::read_to_string(dir.join("paper.aot.java")).ok().and_then(|v| v.trim().parse().ok()) {
+        Some(major) => major,
+        None => {
+            let major = java_major(&java).unwrap_or(0);
+            let _ = fs::write(dir.join("paper.aot.java"), major.to_string());
+            major
+        }
+    };
+    let mut args = flags.clone();
+    if major < AOT_JAVA {
+        args.extend(["-cp".into(), class_path, MAIN.into(), "--nogui".into()]);
+        return Ok(Launch { java, args, proxy });
+    }
 
     // A finished training run left paper.aot.config: build the cache from it now (a few seconds)
     let config = dir.join("paper.aot.config");
@@ -172,7 +240,6 @@ pub fn prepare(dir: &Path, args: &[String], proxy_protocol: bool) -> Result<Laun
         let _ = fs::remove_file(&config);
     }
 
-    let mut args = flags;
     if has_data(&cache) {
         args.push("-XX:AOTCache=paper.aot".into());
     } else {
@@ -180,7 +247,7 @@ pub fn prepare(dir: &Path, args: &[String], proxy_protocol: bool) -> Result<Laun
         args.extend(["-XX:AOTMode=record".into(), "-XX:AOTConfiguration=paper.aot.config".into()]);
     }
     args.extend(["-cp".into(), class_path, MAIN.into(), "--nogui".into()]);
-    Ok(Launch { java, args })
+    Ok(Launch { java, args, proxy })
 }
 
 /// The class path from Paper's launcher lists: the server jar and its libraries.
@@ -220,6 +287,30 @@ fn set_yaml(path: &Path, settings: &[(&str, &str)]) {
     }
     if changed != text {
         let _ = fs::write(path, changed);
+    }
+}
+
+/// The value of the first line that starts with the key (with its indentation), if any.
+fn yaml_value(path: &Path, key: &str) -> Option<String> {
+    let text = fs::read_to_string(path).ok()?;
+    text.lines().find_map(|line| line.strip_prefix(key).map(|v| v.trim().to_string()))
+}
+
+/// Put Paper's own defaults back (`blink restore`): the watchdog, restart-on-crash, the PROXY
+/// protocol (if Blink turned it on) and spark's background profiler.
+pub fn restore_server_files(dir: &Path, proxy_protocol: bool) {
+    set_yaml(&dir.join("spigot.yml"), &[("  timeout-time:", "60"), ("  restart-on-crash:", "true")]);
+    let global = dir.join("config").join("paper-global.yml");
+    set_yaml(&global, &[("  early-warning-delay:", "10000")]);
+    if proxy_protocol {
+        set_yaml(&global, &[("  proxy-protocol:", "false")]);
+    }
+    let spark = dir.join("plugins").join("spark").join("config.json");
+    if let Ok(text) = fs::read_to_string(&spark) {
+        let _ = fs::write(&spark, text.replace("\"backgroundProfiler\": false", "\"backgroundProfiler\": true"));
+    }
+    for file in ["paper.aot", "paper.aot.config", "paper.aot.stamp", "paper.aot.java", "classpath.txt"] {
+        let _ = fs::remove_file(dir.join(file));
     }
 }
 

@@ -79,7 +79,7 @@ checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 
 [[package]]
 name = "blink"
-version = "2.2.0"
+version = "2.3.0"
 dependencies = [
  "anyhow",
  "base64",

@@ -6,7 +6,7 @@
 #
 # Players are simulated with /forceload: each "player" loads the 25 x 25 chunks a player with view
 # distance 12 would load, centered on one of the biggest region files of the overworld (where people
-# actually built). The service's lazymc.toml is changed during the run and put back at the end.
+# actually built). The service's blink.toml is changed during the run and put back at the end.
 set -u
 SERVICE=$1 DIR=$2 PORT=$3 NAME=$4
 HERE=$(cd "$(dirname "$0")" && pwd)

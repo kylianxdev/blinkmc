@@ -1,15 +1,15 @@
 [package]
 name = "blink"
-version = "2.2.0"
+version = "2.3.0"
 authors = ["Kylian de Groot", "Tim Visee (lazymc)"]
 license = "GPL-3.0"
 readme = "README.md"
 homepage = "https://kylianxdev.github.io/blinkmc/"
 repository = "https://github.com/kylianxdev/blinkmc"
-description = "Your Minecraft server sleeps when nobody plays and wakes up in 0.1 seconds. Based on lazymc."
+description = "Your Minecraft server sleeps when nobody plays and is back in the world within a second when someone joins. Based on lazymc."
 keywords = ["minecraft", "server", "idle", "cli"]
 categories = ["command-line-interface", "games"]
-exclude = ["/.github", "/contrib"]
+exclude = ["/.github", "/docs", "/tools"]
 edition = "2021"
 rust-version = "1.74.0"
 
@@ -94,4 +94,6 @@ winapi = { version = "0.3", features = [
     "ntdef",
     "minwindef",
     "psapi",
+    "tlhelp32",
+    "sysinfoapi",
 ] }

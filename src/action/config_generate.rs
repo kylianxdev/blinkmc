@@ -10,7 +10,7 @@ use crate::util::error::{quit, quit_error, ErrorHintsBuilder};
 pub fn invoke(matches: &ArgMatches) {
     // Get config path, attempt to canonicalize
     let mut path = PathBuf::from(matches.get_one::<String>("config").unwrap());
-    if let Ok(p) = path.canonicalize() {
+    if let Some(p) = crate::util::canonicalize(&path) {
         path = p;
     }
 

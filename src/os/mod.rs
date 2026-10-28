@@ -7,6 +7,10 @@ use nix::{
     unistd::Pid,
 };
 
+// The server runs in its own process group (Unix) or is the root of its own process tree
+// (Windows). Signals go to all of it, so a `command` that is a script (start.sh, run.sh) freezes,
+// thaws and stops together with the Java process it started.
+
 /// Force kill process.
 ///
 /// Results in undefined behavior if PID is invalid.
@@ -62,9 +66,12 @@ pub fn unfreeze(pid: u32) -> bool {
     false
 }
 
+/// Send a signal to the server's process group (its PID is the group ID), or to the process alone
+/// if it has no group of its own.
 #[cfg(unix)]
 pub fn unix_signal(pid: u32, signal: Signal) -> bool {
-    match signal::kill(Pid::from_raw(pid as i32), signal) {
+    let group = signal::killpg(Pid::from_raw(pid as i32), signal);
+    match group.or_else(|_| signal::kill(Pid::from_raw(pid as i32), signal)) {
         Ok(()) => true,
         Err(err) => {
             warn!(target: "lazymc", "Sending {signal} signal to server failed: {err}");

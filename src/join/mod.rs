@@ -82,7 +82,7 @@ pub async fn occupy(
             // Lobby method, keep client in lobby while server starts
             #[cfg(not(feature = "lobby"))]
             Method::Lobby => {
-                error!(target: "lazymc", "Lobby join method not supported in this lazymc build");
+                error!(target: "lazymc", "The lobby join method is not in this build of Blink; use hold and kick");
                 MethodResult::Continue(inbound)
             }
         };

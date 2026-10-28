@@ -15,7 +15,7 @@ pub async fn service(config: Arc<Config>, state: Arc<Server>) {
     match probe::probe(config, state).await {
         Ok(_) => info!(target: "lazymc::probe", "Succesfully probed server"),
         Err(_) => {
-            error!(target: "lazymc::probe", "Failed to probe server, this may limit lazymc features")
+            error!(target: "lazymc::probe", "Failed to probe server, this may limit the lobby and Forge join features")
         }
     }
 }

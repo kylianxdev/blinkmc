@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Blink: the RAM solution for Minecraft servers and BungeeCord networks</title>
-<meta name="description" content="Blink makes Minecraft Paper servers sleep when nobody plays and wake up in 0.1 seconds when someone joins. Frees your RAM, works for single servers and BungeeCord or Velocity networks, on Linux, macOS and Windows. No mods.">
-<meta name="keywords" content="minecraft server sleep, bungeecord ram, velocity network ram, auto start minecraft server on join, lazymc alternative, paper, minecraft server idle, save ram minecraft server">
+<meta name="description" content="Blink makes Minecraft servers sleep when nobody plays; a join has players back in the world within a second. Frees your RAM. Paper, Fabric, Forge and vanilla, single servers and BungeeCord or Velocity networks, on Linux, macOS and Windows. No mods.">
+<meta name="keywords" content="minecraft server sleep, bungeecord ram, velocity network ram, auto start minecraft server on join, lazymc alternative, paper, fabric, forge, modded server ram, minecraft server idle, save ram minecraft server">
 <meta property="og:title" content="Blink: the RAM solution for Minecraft servers">
-<meta property="og:description" content="Sleeps when nobody plays, wakes up in 0.1 s when someone joins. Single servers and BungeeCord or Velocity networks. No mods.">
+<meta property="og:description" content="Sleeps when nobody plays; a join has players back in the world within a second. Paper, Fabric and Forge, single servers and BungeeCord or Velocity networks. No mods.">
 <meta property="og:image" content="https://kylianxdev.github.io/blinkmc/assets/social.png">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -184,8 +184,8 @@ footer a{color:#b8f08f}
       <div class="links"><a href="#cases">Use cases</a><a href="#green">Greener</a><a href="#numbers">Numbers</a><a href="#install">Install</a><a href="https://github.com/kylianxdev/blinkmc">GitHub</a></div>
     </nav>
     <div class="hero-in">
-      <h1>Your server sleeps.<br><em>It wakes up in 0.1 s.</em></h1>
-      <p class="lead">The RAM solution for Minecraft servers. Blink puts a server to sleep when nobody plays and gives its memory back; when someone joins, it is awake in a tenth of a second. For a server with friends, a server at home, or a whole BungeeCord or Velocity network.</p>
+      <h1>Your server sleeps.<br><em>Back in under a second.</em></h1>
+      <p class="lead">The RAM solution for Minecraft servers. Blink puts a server to sleep when nobody plays and gives its memory back; when someone joins, they are back in the world within a second. Paper, Fabric, Forge or vanilla: for a server with friends, a server at home, or a whole BungeeCord or Velocity network.</p>
       <div class="cta"><a class="btn go" href="#install">Get started</a><a class="btn" href="https://github.com/kylianxdev/blinkmc">&#9733; Star on GitHub</a></div>
     </div>
   </div>
@@ -193,13 +193,13 @@ footer a{color:#b8f08f}
 
 <div class="wrap">
   <div class="stats">
-    <div class="gui"><b>0.1 s</b><span>until a sleeping server takes the join</span></div>
-    <div class="gui"><b>7 MB</b><span>RAM of a server asleep for 10 minutes, instead of 3 GB</span></div>
-    <div class="gui"><b>4.4 s</b><span>cold start of Paper, down from 11.5 s</span></div>
+    <div class="gui"><b>&lt; 1 s</b><span>from Join to in the world on a sleeping server</span></div>
+    <div class="gui"><b>7 MB</b><span>RAM of a server asleep for 10 minutes, instead of 3 GB (the rest in swap)</span></div>
+    <div class="gui"><b>4.4 s</b><span>cold start of Paper with Java 26, down from 13.2 s</span></div>
     <div class="gui"><b>1.5 MB</b><span>RAM for Blink itself, no mods</span></div>
   </div>
   <p class="note" style="text-align:center;margin-top:14px">Measured on our server (6 vCPU VPS, Paper 26.3). Yours depends on your hardware; the <a href="https://github.com/kylianxdev/blinkmc/tree/main/tools">scripts to measure it</a> are in the repo.</p>
-  <div class="works"><span>Works on</span><b>Linux</b><b>macOS</b><b>Windows</b><b>Paper</b><b>Purpur</b><b>BungeeCord</b><b>Velocity</b><span>tested on every change</span></div>
+  <div class="works"><span>Works on</span><b>Linux</b><b>macOS</b><b>Windows</b><b>Paper</b><b>Purpur</b><b>Fabric</b><b>Forge</b><b>NeoForge</b><b>BungeeCord</b><b>Velocity</b><span>tested on every change</span></div>
 
   <section>
     <div class="demo">
@@ -244,13 +244,13 @@ footer a{color:#b8f08f}
         <span class="lab"><i class="blk"></i>FRIENDS</span>
         <h3>Your friends' server, without the idle bill</h3>
         <p>You play a few hours in the evening; the server sits there the other 21 hours, holding gigabytes. With Blink it saves and freezes 30 seconds after the last player leaves, and wakes up the moment someone joins. A smaller VPS does the job, or the same one runs more.</p>
-        <ul><li>7 MB while asleep instead of 3 GB</li><li>Nobody notices: same address, same MOTD, no mods</li><li>Saves before every freeze</li></ul>
+        <ul><li>0.3 GB asleep, 7 MB after 10 minutes, instead of 3 GB</li><li>Nobody notices: same address, no mods, in the world within a second</li><li>Saves before every freeze</li></ul>
       </div>
       <div class="gui">
         <div class="figs"><i class="fig"></i><i class="fig f-p2"></i><span class="zz">z z</span></div>
         <div class="day"><i class="z" style="width:70%"></i><i class="a" style="width:13%"></i><i class="z" style="width:17%"></i></div>
         <div class="ax"><span>00:00</span><span>12:00</span><span>17:00</span><span>20:00</span><span>24:00</span></div>
-        <p style="margin:14px 0 0;font-size:14px">Green: awake while you play. Blue: asleep, 7 MB, 0 % CPU.</p>
+        <p style="margin:14px 0 0;font-size:14px">Green: awake while you play. Blue: asleep, 0 % CPU, a few MB of RAM.</p>
       </div>
     </div>
 
@@ -258,7 +258,7 @@ footer a{color:#b8f08f}
       <div class="ct">
         <span class="lab"><i class="blk b-ice"></i>AT HOME</span>
         <h3>Host at home. Your PC stays yours.</h3>
-        <p>An empty Minecraft server still ticks all day and keeps its memory. Frozen, it uses no CPU at all and hands its RAM to your games, browser and everything else. Linux, macOS and Windows, no admin rights needed.</p>
+        <p>An empty Minecraft server still ticks all day and keeps its memory. Frozen, it uses no CPU at all and hands its RAM to your games, browser and everything else: Windows and macOS compress it and give it back when someone joins. Linux, macOS and Windows, no admin rights needed.</p>
         <ul><li>0 % CPU while asleep</li><li>Memory back for your own programs</li><li>One command to install, one to remove</li></ul>
       </div>
       <div class="gui">
@@ -266,7 +266,7 @@ footer a{color:#b8f08f}
         <table class="tbl"><tr><th>Process</th><th>CPU</th><th>Memory</th></tr>
           <tr><td>Your game</td><td>18 %</td><td>4.1 GB</td></tr>
           <tr><td>Browser</td><td>3 %</td><td>1.6 GB</td></tr>
-          <tr class="hl"><td>Minecraft server (asleep)</td><td>0 %</td><td>7 MB</td></tr>
+          <tr class="hl"><td>Minecraft server (asleep)</td><td>0 %</td><td>compressed</td></tr>
           <tr><td>Blink</td><td>0 %</td><td>1.5 MB</td></tr></table>
       </div>
     </div>
@@ -355,14 +355,14 @@ footer a{color:#b8f08f}
 
   <section id="numbers">
     <div class="kick"><i class="ic i-clock"></i>THE NUMBERS</div>
-    <h2>From 13 seconds to 0.1</h2>
+    <h2>From 13 seconds to under one</h2>
     <div class="gui">
       <div class="ch"><span>Stock Paper (paperclip)</span><div class="t"><i style="width:100%;background:#c84a3a"></i></div><b>13.2 s</b></div>
       <div class="ch"><span>Paper with Java's AOT cache</span><div class="t"><i style="width:34%;background:#e2b13a"></i></div><b>4.4 s</b></div>
       <div class="ch"><span>Switch to a sleeping server (proxy)</span><div class="t"><i style="width:9%;background:#5dc93f"></i></div><b>~1 s</b></div>
-      <div class="ch"><span>Wake from frozen</span><div class="t"><i style="width:1%;background:#5dc93f"></i></div><b>0.1 s</b></div>
+      <div class="ch"><span>Wake from frozen, until in the world</span><div class="t"><i style="width:5%;background:#5dc93f"></i></div><b>0.5-0.9 s</b></div>
     </div>
-    <p class="note" style="margin-top:12px">Wake: until the server takes the join; in the world 0.3 to 1.7 s later. Proxy: one BungeeCord or Velocity with five servers, real logins.</p>
+    <p class="note" style="margin-top:12px">Wake: from clicking Join until the player is in the world (the server itself takes the join after 0.1 to 0.4 s). After 10 minutes asleep the memory comes back from the swap file: about 3 s. Proxy: one BungeeCord or Velocity with five servers, real logins. Cold start: Paper with Java 26.</p>
   </section>
 
   <section id="vs">
@@ -371,13 +371,14 @@ footer a{color:#b8f08f}
     <p class="sub">Blink is built on lazymc by Tim Visée. Same machine, same Paper 26.3 server; lazymc 0.2.11 is its latest release.</p>
     <div class="gui">
       <div class="vs"><span></span><span>lazymc 0.2.11</span><span>Blink 2</span></div>
-      <div class="vs"><span>Join a sleeping server</span><span class="x">held 25 s, then kicked</span><span class="v">0.1 to 0.4 s</span></div>
+      <div class="vs"><span>Join a sleeping server</span><span class="x">held 25 s, then kicked</span><span class="v">in the world in under 1 s</span></div>
       <div class="vs"><span>RAM of the sleeping server</span><span class="x">all of it (1 to 3 GB)</span><span class="v">7 MB</span></div>
       <div class="vs"><span>RAM of the proxy</span><span class="x">5.7 MB, 10 threads</span><span class="v">1.5 MB, 2 threads</span></div>
       <div class="vs"><span>Saves before sleeping</span><span class="x">no</span><span class="v">yes</span></div>
       <div class="vs"><span>Stop while asleep</span><span class="x">hangs</span><span class="v">saves, stops in 1 to 2 s</span></div>
       <div class="vs"><span>BungeeCord / Velocity</span><span class="x">kicks the player</span><span class="v">tested, ~1 s switch</span></div>
       <div class="vs"><span>Linux / macOS / Windows</span><span class="x">freezes on Linux, macOS</span><span class="v">all three, tested</span></div>
+      <div class="vs"><span>Fabric / Forge setup</span><span class="x">by hand</span><span class="v">blink init</span></div>
     </div>
   </section>
 
@@ -395,7 +396,7 @@ footer a{color:#b8f08f}
   <section id="install">
     <div class="kick"><i class="ic i-pick"></i>INSTALL</div>
     <h2>Get started</h2>
-    <p class="sub">One command. Stop your server, go to the folder with your <code>paper.jar</code> and paste this:</p>
+    <p class="sub">One command. Stop your server, make a backup, go to its folder (<code>paper.jar</code>, a Fabric or vanilla jar, or Forge&#39;s run script) and paste this:</p>
     <div class="tabs" id="tabs">
       <span class="btn on" data-c="curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash" data-n="Full install: a service, plus swap and zswap so a sleeping server leaves RAM. Needs root.">Linux</span>
       <span class="btn" data-c="curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | bash -s -- --portable" data-n="No root, no system changes: blink and blink.toml in the server folder. Then run ./blink start.">Linux / macOS, no root</span>
@@ -403,7 +404,7 @@ footer a{color:#b8f08f}
     </div>
     <div class="cmd"><pre id="cmd">curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash</pre><span class="btn go" id="copy">Copy</span></div>
     <p class="tip" id="note" style="margin-top:12px">Full install: a service, plus swap and zswap so a sleeping server leaves RAM. Needs root.</p>
-    <p class="note">Players join on the same address as always. Your world and settings stay as they are; <code>--uninstall</code> undoes it all. Networks: a Blink per backend server, see the <a href="https://github.com/kylianxdev/blinkmc#networks-bungeecord-and-velocity">README</a>.</p>
+    <p class="note">Players join on the same address as always. Your world stays as it is; Blink moves the server to a port of its own and raises Paper&#39;s watchdog (<a href="https://github.com/kylianxdev/blinkmc#what-blink-changes">everything it changes</a>), and <code>blink restore</code> or <code>--uninstall</code> puts it back. Read the installer first? <a href="https://github.com/kylianxdev/blinkmc/blob/main/install.sh">install.sh</a>, <a href="https://github.com/kylianxdev/blinkmc/blob/main/install.ps1">install.ps1</a>. Networks: a Blink per backend server, see the <a href="https://github.com/kylianxdev/blinkmc#networks-bungeecord-and-velocity">README</a>.</p>
   </section>
 
   <section>
@@ -412,11 +413,14 @@ footer a{color:#b8f08f}
     <div class="card">
       <details><summary>Do players need to install anything?</summary><p>No. It is a normal Minecraft server for them. The only thing they may notice is a different MOTD while the server sleeps.</p></details>
       <details><summary>Does it work with BungeeCord or Velocity?</summary><p>Yes: a Blink in front of each backend server. Tested with one proxy, a lobby and four personal worlds, with bots that log in and switch: 0.3 to 1.7 s to a sleeping world (about 3 s on the first visit after a server restart), and five sleeping servers use about 1 GB together.</p></details>
-      <details><summary>Is a frozen server safe for my world?</summary><p>Blink saves the world before every freeze and checks that nobody joined meanwhile. Stopping it thaws the server first and lets Paper save and shut down normally. Nothing in Paper or your world is changed. Still: try it with a fresh backup first.</p></details>
+      <details><summary>Is a frozen server safe for my world?</summary><p>Blink saves the world (<code>save-all flush</code>) before every freeze and checks that nobody joined meanwhile. Stopping it thaws the server first and lets it save and shut down normally. Nothing in your world is changed. Still: try it with a fresh backup first.</p></details>
+      <details><summary>What does Blink change, and how do I undo it?</summary><p>The server&#39;s port in <code>server.properties</code> (Blink takes yours, the server moves behind it), Paper&#39;s watchdog and its PROXY protocol setting, and on Linux with the full install a service, swap and zswap. <code>blink restore</code> puts back only what Blink set, <code>--uninstall</code> removes the rest. <a href="https://github.com/kylianxdev/blinkmc#what-blink-changes">The full list</a>.</p></details>
+      <details><summary>Do I need Java 26?</summary><p>No. Your server needs the Java its Minecraft version needs. Java 26 makes a cold start of Paper fast (4 s instead of 13, with Java&#39;s AOT cache); waking a frozen server is just as fast on any Java.</p></details>
       <details><summary>Do I need a whitelist?</summary><p>No. Without one anyone can wake the server, also new players; a bot that does only keeps it awake until the next freeze. With the whitelist on, only whitelisted players can wake it.</p></details>
       <details><summary>Does it need root or change my system?</summary><p>Only the full Linux install: a service, a swap file and zswap. The portable install (Linux, macOS) and the Windows install change nothing outside your server folder.</p></details>
+      <details><summary>Does it work with my hosting provider?</summary><p>Blink runs next to your server, so you need a machine where you can run your own programs: a VPS, a dedicated server or your own PC. Most shared Minecraft hosting plans don&#39;t allow that.</p></details>
       <details><summary>Does Blink send anything?</summary><p>Once a day it downloads a 1 byte file from Blink's GitHub releases; GitHub counts the downloads. Nothing is sent. Off with <code>usage_stats = false</code> or <code>DO_NOT_TRACK=1</code>.</p></details>
-      <details><summary>Spigot, Fabric or Forge?</summary><p>Sleeping works with any Java server (set <code>command</code> in <code>blink.toml</code>). The fast cold start is made for Paper and its forks.</p></details>
+      <details><summary>Spigot, Fabric or Forge?</summary><p>Yes. <code>blink init</code> and the installers recognise Paper, Purpur, Fabric, Quilt, Forge, NeoForge and vanilla, and sleeping works the same for all of them. The fast cold start (Java&#39;s AOT cache) is for Paper and its forks; real player IPs need a PROXY protocol mod on Fabric and Forge.</p></details>
     </div>
   </section>
 </div>

@@ -78,6 +78,16 @@ where
     quit_error(anyhow!(err), hints);
 }
 
+/// Quit with the first problem as the error and the others as info lines.
+pub fn quit_problems(problems: Vec<String>) -> ! {
+    let mut hints = ErrorHintsBuilder::default();
+    for problem in problems.iter().skip(1) {
+        hints = hints.add_info(problem.clone());
+    }
+    let first = problems.into_iter().next().unwrap_or_default();
+    quit_error_msg(first, hints.verbose(false).help(false).build().unwrap());
+}
+
 /// The error hint configuration.
 #[derive(Clone, Builder)]
 #[builder(default)]
@@ -125,8 +135,8 @@ impl ErrorHints {
         let bin = crate::util::bin_name();
         if self.config_generate {
             eprintln!(
-                "Use '{}' to generate a new config file",
-                highlight(&format!("{bin} config generate"))
+                "Use '{}' in your server folder to write one for your server",
+                highlight(&format!("{bin} init"))
             );
         }
         if self.config {

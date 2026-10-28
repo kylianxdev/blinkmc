@@ -9,15 +9,19 @@ pub fn app() -> Command {
         .subcommand(
             Command::new("start")
                 .alias("run")
-                .about("Start lazymc and server (default)"),
+                .about("Start Blink and the server (default)"),
         )
         .subcommand(
             Command::new("init")
-                .about("Write a blink.toml for the server in this folder")
+                .about("Write a blink.toml for the server in this folder (Paper, Purpur, Fabric, Forge, NeoForge or vanilla)")
                 .arg(Arg::new("heap").long("heap").value_name("SIZE").help("Maximum Java heap, e.g. 6G (default: 60% of the RAM, at most 8G)").num_args(1))
                 .arg(Arg::new("sleep").long("sleep").value_name("SECONDS").default_value("30").value_parser(clap::value_parser!(u32)).help("Save and freeze this many seconds after the last player left"))
                 .arg(Arg::new("threads").long("threads").value_name("N").default_value("1").value_parser(clap::value_parser!(usize)).help("Threads for the players' traffic"))
                 .arg(Arg::new("force").long("force").action(clap::ArgAction::SetTrue).help("Overwrite an existing blink.toml")),
+        )
+        .subcommand(
+            Command::new("restore")
+                .about("Undo Blink's changes to the server's files: its port, the watchdog and the PROXY protocol"),
         )
         .subcommand(
             Command::new("config")
@@ -28,7 +32,7 @@ pub fn app() -> Command {
                 .subcommand(
                     Command::new("generate")
                         .alias("gen")
-                        .about("Generate config"),
+                        .about("Write the example config with every setting explained (blink init writes one for your server)"),
                 )
                 .subcommand(Command::new("test").about("Test config")),
         )
@@ -42,5 +46,13 @@ pub fn app() -> Command {
                 .default_value(crate::config::CONFIG_FILE)
                 .help("Use config file")
                 .num_args(1),
+        )
+        .arg(
+            Arg::new("verbose")
+                .short('v')
+                .long("verbose")
+                .global(true)
+                .action(clap::ArgAction::SetTrue)
+                .help("A detailed log (the same as RUST_LOG=debug)"),
         )
 }

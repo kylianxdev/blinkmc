@@ -20,7 +20,7 @@ use crate::proto::{self, packet, packets};
 use crate::server::{Server, State};
 
 /// Minecraft username to use for probing the server.
-const PROBE_USER: &str = "_lazymc_probe";
+const PROBE_USER: &str = "_blink_probe";
 
 /// Timeout for probe user connecting to the server.
 const PROBE_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);

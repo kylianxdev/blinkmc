@@ -11,6 +11,14 @@ permissions:
   contents: write
 
 jobs:
+  # Unit tests, and the installers' shell code
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --locked
+      - run: shellcheck --severity=warning install.sh
+
   build:
     name: build ${{ matrix.name }}
     strategy:
@@ -41,7 +49,9 @@ jobs:
           name: ${{ matrix.name }}
           path: dist/${{ matrix.name }}
 
-  # A real Paper server on every OS: start, save and freeze, wake up with a join, freeze again, stop
+  # A real Paper server on every OS: install, start, save and freeze, wake up with a join, freeze
+  # again, stop, restore. Linux starts from a new server (no server.properties yet); Windows stops
+  # by typing stop in the console.
   smoke:
     name: test on ${{ matrix.os }}
     needs: build
@@ -49,9 +59,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, binary: blink-linux-x64 }
-          - { os: macos-latest, binary: blink-macos-arm64 }
-          - { os: windows-latest, binary: blink-windows-x64.exe }
+          - { os: ubuntu-latest, binary: blink-linux-x64, fresh: "1", stop: signal }
+          - { os: macos-latest, binary: blink-macos-arm64, fresh: "0", stop: signal }
+          - { os: windows-latest, binary: blink-windows-x64.exe, fresh: "0", stop: console }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -74,13 +84,33 @@ jobs:
             | python -c "import json,sys; print(json.load(sys.stdin)['downloads']['server:default']['url'])")
           curl -fsSL "$url" -o server/paper.jar
           chmod +x bin/*
+      # The installers as users run them (Windows PowerShell 5.1, not pwsh), with this build of blink
+      - name: Install (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        working-directory: server
+        env:
+          BLINK_BINARY: ${{ github.workspace }}\bin\${{ matrix.binary }}
+        run: |
+          Get-Content ..\install.ps1 -Raw | Invoke-Expression
+          .\blink.exe config test
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Install (Linux, macOS)
+        if: runner.os != 'Windows'
+        working-directory: server
+        env:
+          BLINK_BINARY: ${{ github.workspace }}/bin/${{ matrix.binary }}
+        run: bash ../install.sh --portable && ./blink config test
       - name: Test
         shell: bash
+        env:
+          SMOKE_FRESH: ${{ matrix.fresh }}
+          SMOKE_STOP: ${{ matrix.stop }}
         run: python tools/smoke-test.py "bin/${{ matrix.binary }}" server
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, smoke]
+    needs: [check, build, smoke]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

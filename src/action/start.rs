@@ -12,7 +12,7 @@ use crate::service;
 #[cfg(feature = "rcon")]
 const RCON_PASSWORD_LENGTH: usize = 32;
 
-/// Start lazymc.
+/// Start Blink.
 pub fn invoke(matches: &ArgMatches) -> Result<(), ()> {
     // Load config
     #[allow(unused_mut)]
@@ -22,12 +22,32 @@ pub fn invoke(matches: &ArgMatches) -> Result<(), ()> {
     #[cfg(feature = "rcon")]
     prepare_rcon(&mut config);
 
-    // Rewrite server server.properties file
-    rewrite_server_properties(&config);
+    // A server that never accepted the EULA quits right away; say so now instead of after a join
+    check_eula(&config);
 
-    // Start server service
+    // Start server service (it rewrites server.properties once it has the public port)
     let config = Arc::new(config);
     service::server::service(config)
+}
+
+/// Quit with a clear message if the Minecraft EULA is not accepted in the server folder.
+fn check_eula(config: &Config) {
+    use crate::util::error::{quit_error_msg, ErrorHintsBuilder};
+
+    let Some(dir) = ConfigServer::server_directory(config) else { return };
+    let accepted = std::fs::read_to_string(dir.join("eula.txt"))
+        .is_ok_and(|text| text.lines().any(|l| l.trim() == "eula=true"));
+    if !accepted {
+        quit_error_msg(
+            "The Minecraft EULA is not accepted yet, so the server can't start",
+            ErrorHintsBuilder::default()
+                .add_info(format!("Read https://aka.ms/MinecraftEULA and put eula=true in {}", dir.join("eula.txt").display()))
+                .verbose(false)
+                .help(false)
+                .build()
+                .unwrap(),
+        );
+    }
 }
 
 /// Prepare RCON.
@@ -112,8 +132,9 @@ fn generate_random_password() -> String {
         .collect()
 }
 
-/// Rewrite server server.properties file with correct internal IP and port.
-fn rewrite_server_properties(config: &Config) {
+/// Rewrite server server.properties file with correct internal IP and port. Creates the file for a
+/// new server, so it doesn't start on Blink's own port. `blink restore` puts the values back.
+pub fn rewrite_server_properties(config: &Config) {
     // Rewrite must be enabled
     if !config.advanced.rewrite_server_properties {
         return;
@@ -136,6 +157,12 @@ fn rewrite_server_properties(config: &Config) {
         ("enable-status", "true".into()),
         ("query.port", config.server.address.port().to_string()),
     ]);
+
+    // A frozen server sees a long gap when it wakes up. Vanilla's watchdog (also in Fabric and
+    // Forge) would call that one very long tick and stop the server; Paper has its own (launcher.rs).
+    if config.server.freeze_process {
+        changes.insert("max-tick-time", "-1".into());
+    }
 
     // If connecting to server over non-loopback address, disable proxy blocking
     if !config.server.address.ip().is_loopback() {
