@@ -96,6 +96,14 @@ def read():
 threading.Thread(target=read, daemon=True).start()
 
 wait_for(r"Done \(", timeout=600)
+if os.environ.get("SMOKE_FRESH") == "1":
+    # a new server starts with the whitelist on; turn it off the way an owner would, in the
+    # console (through Blink), and Blink picks the change up from server.properties
+    props = open(os.path.join(DIR, "server.properties"), errors="replace").read()
+    print("new server.properties: " + ", ".join(l for l in props.splitlines() if l.startswith(("white-list", "server-port", "server-ip"))), flush=True)
+    blink.stdin.write("whitelist off\n")
+    blink.stdin.flush()
+    time.sleep(5)
 step("waiting for save and freeze")
 wait_for(r"Saved the game")
 wait_for(r"Server is now sleeping")
