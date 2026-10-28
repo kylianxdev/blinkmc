@@ -556,6 +556,8 @@ Or by hand, anywhere: `blink restore`, then delete `blink` and `blink.toml`.
 **Whitelist.** Optional. With the whitelist on in `server.properties`, only whitelisted players can
 wake the server. With it off, anyone can, also new players. Bots that wake it only keep it awake
 until the next freeze; `wake_known_players = true` in `blink.toml` stops them, but also new players.
+Note: a new Minecraft 26.3 server starts with the whitelist on (`white-list=true`); add your
+friends with `whitelist add <name>` in the console, or turn it off with `whitelist off`.
 
 **The console.** What you type goes to the server, as before. `stop` stops the server and Blink
 (as Ctrl+C does), also when the server is frozen; in the systemd service, Blink starts again after
