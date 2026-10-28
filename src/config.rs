@@ -23,7 +23,7 @@ const CONFIG_VERSION: &str = "0.2.8";
 pub fn load(matches: &ArgMatches) -> Config {
     // Get config path, attempt to canonicalize
     let mut path = PathBuf::from(matches.get_one::<String>("config").unwrap());
-    if let Ok(p) = path.canonicalize() {
+    if let Some(p) = crate::util::canonicalize(&path) {
         path = p;
     }
 
@@ -31,12 +31,14 @@ pub fn load(matches: &ArgMatches) -> Config {
     if !path.is_file() {
         quit_error_msg(
             format!(
-                "Config file does not exist: {}",
+                "There is no {} here ({})",
+                CONFIG_FILE,
                 path.to_str().unwrap_or("?")
             ),
             ErrorHintsBuilder::default()
                 .config(true)
                 .config_generate(true)
+                .verbose(false)
                 .build()
                 .unwrap(),
         );
@@ -51,11 +53,17 @@ pub fn load(matches: &ArgMatches) -> Config {
                 ErrorHintsBuilder::default()
                     .config(true)
                     .config_test(true)
+                    .verbose(false)
                     .build()
                     .unwrap(),
             );
         }
     };
+
+    // Problems that would only show up later (at the first join), now
+    if let Err(problems) = config.check() {
+        crate::util::error::quit_problems(problems);
+    }
 
     config
 }
@@ -113,13 +121,13 @@ impl Config {
 
         // Show warning if config version is problematic
         match &config.config.version {
-            None => warn!(target: "lazymc::config", "Config version unknown, it may be outdated"),
+            None => warn!(target: "lazymc::config", "blink.toml has no [config] version, it may be outdated"),
             Some(version) => match version_compare::compare_to(version, CONFIG_VERSION, Cmp::Ge) {
                 Ok(false) => {
-                    warn!(target: "lazymc::config", "Config is for older lazymc version, you may need to update it")
+                    warn!(target: "lazymc::config", "blink.toml is from an older version; 'blink init --force' writes a new one")
                 }
                 Err(_) => {
-                    warn!(target: "lazymc::config", "Config version is invalid, you may need to update it")
+                    warn!(target: "lazymc::config", "The [config] version in blink.toml is invalid")
                 }
                 Ok(true) => {}
             },
@@ -127,6 +135,45 @@ impl Config {
         config.path.replace(path);
 
         Ok(config)
+    }
+
+    /// Problems that would stop the server from starting, worst first.
+    pub fn check(&self) -> Result<(), Vec<String>> {
+        let mut problems = vec![];
+        let dir = Server::server_directory(self);
+        match shlex::split(&self.server.command).filter(|args| !args.is_empty()) {
+            None => problems.push("server.command in blink.toml is empty or has an unclosed quote".to_string()),
+            Some(args) if args[0] == "blink-paper" => {
+                let settings = crate::launcher::settings(&args[1..]);
+                let jar = settings.get("JAR").map_or("paper.jar", String::as_str);
+                if let Some(dir) = dir.as_ref().filter(|dir| dir.is_dir()) {
+                    if !dir.join(jar).is_file() {
+                        problems.push(format!("{jar} is not in {}; set JAR= in server.command in blink.toml", dir.display()));
+                    }
+                }
+                if let Some(java) = settings.get("JAVA") {
+                    let java = std::path::Path::new(java);
+                    if java.is_absolute() && !java.is_file() {
+                        let java = java.display();
+                        problems.push(format!("Java is not at {java}; fix JAVA= in server.command in blink.toml, or remove it to use the newest Java"));
+                    }
+                }
+            }
+            Some(_) => {}
+        }
+        if let Some(dir) = dir.as_ref().filter(|dir| !dir.is_dir()) {
+            problems.push(format!("The server folder {} does not exist (server.directory in blink.toml)", dir.display()));
+        }
+        if self.public.address.port() == self.server.address.port()
+            && (self.server.address.ip().is_loopback() || self.server.address.ip() == self.public.address.ip())
+        {
+            problems.push("[public] and [server] use the same port; the server needs a port of its own behind Blink".to_string());
+        }
+        if problems.is_empty() {
+            Ok(())
+        } else {
+            Err(problems)
+        }
     }
 }
 
@@ -175,7 +222,7 @@ pub struct Server {
     pub address: SocketAddr,
 
     /// Freeze the server process instead of restarting it when no players online, making it start up faster.
-    /// Only works on Unix (Linux or MacOS)
+    /// Linux, macOS and Windows.
     #[serde(default = "bool_true")]
     pub freeze_process: bool,
 
@@ -189,7 +236,7 @@ pub struct Server {
     #[serde(default = "bool_true")]
     pub save_before_freeze: bool,
 
-    /// Immediately wake server when starting lazymc.
+    /// Immediately wake server when starting Blink.
     #[serde(default)]
     pub wake_on_start: bool,
 
@@ -197,7 +244,7 @@ pub struct Server {
     #[serde(default)]
     pub wake_on_crash: bool,
 
-    /// Probe required server details when starting lazymc, wakes server on start.
+    /// Probe required server details when starting Blink, wakes server on start.
     #[serde(default)]
     pub probe_on_start: bool,
 
@@ -257,7 +304,7 @@ pub struct Time {
     pub sleep_after: u32,
 
     /// Minimum time in seconds to stay online when server is started.
-    #[serde(default, alias = "minimum_online_time")]
+    #[serde(alias = "minimum_online_time")]
     pub min_online_time: u32,
 
     /// Deep sleep after the server was frozen this many seconds (0: never, Linux only): its memory
@@ -447,7 +494,7 @@ impl Default for JoinLobby {
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct Lockout {
-    /// Enable to prevent everybody from connecting through lazymc. Instantly kicks player.
+    /// Enable to prevent everybody from connecting through Blink. Instantly kicks player.
     pub enabled: bool,
 
     /// Kick players with following message.
@@ -525,7 +572,7 @@ impl Default for Advanced {
 #[derive(Debug, Deserialize, Default)]
 #[serde(default)]
 pub struct ConfigConfig {
-    /// Configuration for lazymc version.
+    /// The Blink version this config was written for.
     pub version: Option<String>,
 }
 
@@ -546,7 +593,7 @@ fn u32_300() -> u32 {
 }
 
 fn u32_150() -> u32 {
-    300
+    150
 }
 
 fn bool_true() -> bool {

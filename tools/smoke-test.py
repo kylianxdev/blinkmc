@@ -4,6 +4,9 @@
 
 Writes blink.toml with `blink init`, starts Blink, waits until the server is frozen, wakes it with a
 join, waits until it is frozen again and stops Blink. Fails (exit 1) when a step does not happen.
+
+    SMOKE_FRESH=1          a new server: no server.properties yet (Blink writes it)
+    SMOKE_STOP=console     stop by typing "stop" in Blink's console instead of Ctrl+C
 """
 import os
 import re
@@ -27,7 +30,11 @@ def step(text):
 def stop_blink():
     """Stop Blink the normal way (it stops the server too), or kill it."""
     try:
-        blink.send_signal(signal.CTRL_BREAK_EVENT if WINDOWS else signal.SIGINT)
+        if os.environ.get("SMOKE_STOP") == "console":
+            blink.stdin.write("stop\n")
+            blink.stdin.flush()
+        else:
+            blink.send_signal(signal.CTRL_BREAK_EVENT if WINDOWS else signal.SIGINT)
         blink.wait(timeout=90)
         return True
     except subprocess.TimeoutExpired:
@@ -65,7 +72,10 @@ def join():
 step("blink init")
 with open(os.path.join(DIR, "eula.txt"), "w") as f:
     f.write("eula=true\n")
-if not os.path.exists(os.path.join(DIR, "server.properties")):
+if os.environ.get("SMOKE_FRESH") == "1":
+    if os.path.exists(os.path.join(DIR, "server.properties")):
+        os.remove(os.path.join(DIR, "server.properties"))
+elif not os.path.exists(os.path.join(DIR, "server.properties")):
     with open(os.path.join(DIR, "server.properties"), "w") as f:
         f.write(f"server-port={PORT}\nwhite-list=false\nlevel-type=minecraft\\:flat\nview-distance=4\n")
 subprocess.run([BLINK, "init", "--heap", "2G", "--sleep", "10", "--force"], cwd=DIR, check=True)
@@ -108,5 +118,11 @@ if not stop_blink():
 log = open(os.path.join(DIR, "logs", "latest.log"), errors="replace").read()
 if "Stopping server" not in log:
     fail("the server did not stop properly")
+
+step("blink restore")
+subprocess.run([BLINK, "restore"], cwd=DIR, check=True)
+props = open(os.path.join(DIR, "server.properties"), errors="replace").read()
+if f"server-port={PORT}" not in props:
+    fail("blink restore did not put the server's own port back")
 
 print(f"\nOK: woke up in {first:.1f} s and {second:.1f} s, stopped cleanly", flush=True)

@@ -9,7 +9,7 @@ use crate::util::error::{quit_error, quit_error_msg, ErrorHintsBuilder};
 pub fn invoke(matches: &ArgMatches) {
     // Get config path, attempt to canonicalize
     let mut path = PathBuf::from(matches.get_one::<String>("config").unwrap());
-    if let Ok(p) = path.canonicalize() {
+    if let Some(p) = crate::util::canonicalize(&path) {
         path = p;
     }
 
@@ -22,17 +22,20 @@ pub fn invoke(matches: &ArgMatches) {
     }
 
     // Try to load config
-    let _config = match Config::load(path) {
+    let config = match Config::load(path) {
         Ok(config) => config,
         Err(err) => {
             quit_error(
                 anyhow!(err).context("Failed to load and parse config"),
-                ErrorHintsBuilder::default().build().unwrap(),
+                ErrorHintsBuilder::default().verbose(false).build().unwrap(),
             );
         }
     };
 
-    // TODO: do additional config tests: server dir correct, command set?
+    // The command, the server folder and jar, the ports
+    if let Err(problems) = config.check() {
+        crate::util::error::quit_problems(problems);
+    }
 
     eprintln!("Config loaded successfully!");
 }

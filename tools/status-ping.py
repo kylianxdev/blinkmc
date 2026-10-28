@@ -1,4 +1,4 @@
-"""Server list ping, or a fake join that wakes a lazymc server.
+"""Server list ping, or a fake join that wakes a server behind Blink.
 
     python3 tools/status-ping.py example.org            # what the server list shows
     python3 tools/status-ping.py example.org --join     # wakes the server, prints how long it took
@@ -7,7 +7,7 @@
 The test join stops at the encryption request, so it never logs in and never shows up in the game.
 
 A join is answered with an encryption request (packet 0x01) once the real server has the player,
-or with a disconnect message (0x00) when lazymc kicks instead.
+or with a disconnect message (0x00) when Blink kicks instead.
 """
 import json
 import socket

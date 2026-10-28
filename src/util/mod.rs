@@ -4,7 +4,18 @@ pub mod serde;
 pub mod style;
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// The absolute path, without the \\?\ that Windows puts in front of it (it reads badly in
+/// messages, and Java doesn't like it as a working directory).
+pub fn canonicalize(path: &Path) -> Option<PathBuf> {
+    let path = path.canonicalize().ok()?;
+    let text = path.to_string_lossy();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if !rest.starts_with("UNC\\") => Some(PathBuf::from(rest)),
+        _ => Some(path),
+    }
+}
 
 /// Get the name of the executable that was invoked.
 ///

@@ -11,9 +11,9 @@ use crate::proxy::{self, ProxyHeader};
 use crate::server::{self, Server};
 use crate::service;
 use crate::status;
-use crate::util::error::{quit_error, ErrorHints};
+use crate::util::error::{quit_error, ErrorHints, ErrorHintsBuilder};
 
-/// Start lazymc.
+/// Start Blink.
 ///
 /// Main entrypoint to start all server/status/proxy logic.
 ///
@@ -43,11 +43,25 @@ async fn run(config: Arc<Config>) -> Result<(), ()> {
     let listener = TcpListener::bind(config.public.address)
         .await
         .map_err(|err| {
-            quit_error(
-                anyhow!(err).context("Failed to start proxy server"),
-                ErrorHints::default(),
-            );
+            let hints = if err.kind() == std::io::ErrorKind::AddrInUse {
+                ErrorHintsBuilder::default()
+                    .add_info(format!(
+                        "Something else uses port {}: is your Minecraft server (or another Blink) still running? Stop it, then start Blink again.",
+                        config.public.address.port()
+                    ))
+                    .add_info("Blink takes over this port and moves the server behind it, so players keep the same address.".into())
+                    .verbose(false)
+                    .build()
+                    .unwrap()
+            } else {
+                ErrorHints::default()
+            };
+            quit_error(anyhow!(err).context(format!("Could not listen on {}", config.public.address)), hints);
         })?;
+
+    // Only now that the port is ours: move the server behind Blink (server.properties)
+    crate::action::start::rewrite_server_properties(&config);
+    server::set_proxy_header(config.server.send_proxy_v2);
 
     info!(
         target: "lazymc",
@@ -141,7 +155,7 @@ fn route_proxy(inbound: TcpStream, config: Arc<Config>) {
     // When server is online, proxy all
     let service = proxy::proxy(
         inbound,
-        ProxyHeader::Proxy.not_none(config.server.send_proxy_v2),
+        ProxyHeader::Proxy.not_none(server::proxy_header()),
         config.server.address,
     )
     .map(|r| {
@@ -158,7 +172,7 @@ fn route_proxy(inbound: TcpStream, config: Arc<Config>) {
 pub fn route_proxy_queue(inbound: TcpStream, config: Arc<Config>, queue: BytesMut) {
     route_proxy_address_queue(
         inbound,
-        ProxyHeader::Proxy.not_none(config.server.send_proxy_v2),
+        ProxyHeader::Proxy.not_none(server::proxy_header()),
         config.server.address,
         queue,
     );

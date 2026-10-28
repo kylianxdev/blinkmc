@@ -53,7 +53,10 @@ fn init_log() {
     // Load .env variables
     let _ = dotenv::dotenv();
 
-    // Set default log level if none is set
+    // Set default log level if none is set; --verbose (read before clap, which comes later) is debug
+    if env::args().any(|arg| arg == "--verbose" || arg == "-v") {
+        env::set_var("RUST_LOG", "debug");
+    }
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", LOG_DEFAULT);
     }
@@ -65,7 +68,7 @@ fn init_log() {
     let _ = log::set_logger(&Logger);
 }
 
-/// A tiny logger: " INFO  lazymc > message" on stderr. RUST_LOG sets the level (info, debug, trace).
+/// A tiny logger: " INFO  blink > message" on stderr. RUST_LOG sets the level (info, debug, trace).
 struct Logger;
 
 impl log::Log for Logger {
@@ -91,6 +94,11 @@ fn invoke_action(app: Command) -> Result<(), ()> {
     // Config operations
     if let Some(matches) = matches.subcommand_matches("init") {
         action::init::invoke(matches);
+        return Ok(());
+    }
+
+    if let Some(matches) = matches.subcommand_matches("restore") {
+        action::restore::invoke(matches);
         return Ok(());
     }
 

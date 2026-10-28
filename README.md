@@ -1,18 +1,19 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Blink: your Minecraft server sleeps when nobody plays and wakes up in 0.1 seconds" width="100%">
+  <img src="docs/assets/banner.png" alt="Blink: your Minecraft server sleeps when nobody plays and is back in the world within a second when someone joins" width="100%">
 </p>
 
 <p align="center">
   <a href="https://kylianxdev.github.io/blinkmc/"><b>Website</b></a> ·
-  <a href="#7-install">Install</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#what-blink-changes">What it changes</a> ·
   <a href="#4-results">Results</a> ·
   <a href="#blink-vs-lazymc">Blink vs lazymc</a>
 </p>
 
 <p align="center">
-  <img alt="Paper 26+" src="https://img.shields.io/badge/Paper-26%2B-36c46b?style=flat-square">
-  <img alt="Java 26" src="https://img.shields.io/badge/Java-26-f5c542?style=flat-square">
-  <img alt="Wake up 0.1 s" src="https://img.shields.io/badge/wake%20up-0.1%20s-6c8cff?style=flat-square">
+  <img alt="Paper, Fabric, Forge, vanilla" src="https://img.shields.io/badge/Paper%20%C2%B7%20Fabric%20%C2%B7%20Forge-any%20version-36c46b?style=flat-square">
+  <img alt="Linux, macOS, Windows" src="https://img.shields.io/badge/Linux%20%C2%B7%20macOS%20%C2%B7%20Windows-tested-6c8cff?style=flat-square">
+  <img alt="In game in under 1 s" src="https://img.shields.io/badge/in%20game-under%201%20s-f5c542?style=flat-square">
   <img alt="1.5 MB" src="https://img.shields.io/badge/blink-1.5%20MB%20RAM-36c46b?style=flat-square">
   <img alt="GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-9aa5d6?style=flat-square">
 </p>
@@ -20,18 +21,20 @@
 # Blink
 
 **The RAM solution for Minecraft servers and BungeeCord or Velocity networks.** Blink makes your
-server sleep when nobody plays and wake up in 0.1 seconds when someone joins. The sleeping server gives most of its memory back to the machine, the server list keeps
-showing your MOTD and icon, and players don't install anything. Stock Paper, stock Java, no mods.
+server sleep when nobody plays and wakes it up when someone joins: they are back in the world
+within a second. The sleeping server gives most of its memory back to the machine, the server list
+keeps showing your MOTD and icon, and players don't install anything. Paper, Purpur, Fabric, Forge,
+NeoForge or vanilla; no mods or plugins needed.
 
 Measured on our server (6 vCPU VPS, Paper 26.3, an 838 MB world). Your numbers depend on your
 hardware; [`tools/`](tools) has the scripts to measure them yourself.
 
 | | Stock Paper | With Blink |
 |---|---|---|
-| Join on a sleeping server until the real server takes over | not possible | **0.1 to 0.4 s** |
-| Switch (BungeeCord or Velocity) to a sleeping server until in game | not possible | **0.3 to 1.7 s** |
-| Cold start (after a reboot or an update) | 13.2 s | **4.4 s** |
-| Memory of a server nobody plays on | 3.0 GB in RAM, 8 GB reserved | **7 MB** after 10 minutes (0.3 GB before) |
+| A join on a sleeping server, until in the world | not possible (it's off, or it runs all day) | **0.5 to 0.9 s** (about 3 s after 10 minutes asleep) |
+| Switch (BungeeCord or Velocity) to a sleeping server, until in the world | not possible | **0.3 to 1.7 s** |
+| Cold start (after a reboot or an update) | 13.2 s | **4.4 s** (Paper with Java 26) |
+| Memory of a server nobody plays on | 3.0 GB in RAM, 8 GB reserved | **0.3 GB** compressed, then **7 MB** after 10 minutes (the rest goes to the swap file) |
 | Blink itself | | **1.5 MB** of RAM, one 1.6 MB file |
 | Server list (MOTD, icon) while asleep | | works |
 
@@ -45,9 +48,11 @@ RAM, and wakes it up as soon as someone joins. It is built on
 ## Who it is for
 
 * **A server for you and your friends.** It's empty most of the day. While it sleeps it costs a few
-  hundred MB instead of gigabytes, so a smaller VPS does, or one machine runs more servers.
+  hundred MB or less instead of gigabytes, so a smaller VPS does, or one machine runs more servers.
 * **Hosting on your own PC.** A frozen server uses no CPU at all and hands its memory back, so your
   games and browser get it, and the machine can idle instead of ticking an empty world all day.
+* **Modded servers.** Fabric and Forge packs use the most memory, so a sleeping modpack gives back
+  the most.
 * **Several servers on one machine.** Survival, creative, a modded test world, an event map: only
   the ones people are on stay awake.
 * **Networks behind BungeeCord or Velocity.** A Blink in front of each backend server: lobby,
@@ -55,9 +60,13 @@ RAM, and wakes it up as soon as someone joins. It is built on
   switching to a sleeping one with `/server` just works. [Tested](#networks-bungeecord-and-velocity)
   with one proxy and five servers.
 
+**Not for:** shared hosting where you can't run your own programs next to the server (most
+"Minecraft hosting" plans). You need a VPS, a dedicated server or your own computer.
+
 ## Install
 
-Stop your server and go to the folder with your `paper.jar`.
+Stop your server and go to its folder (with `paper.jar`, a Fabric or vanilla jar, or Forge's
+`run.sh`). Make a backup first, as with any tool that runs your server.
 
 **Linux, full install** (a service, swap and zswap so a frozen server leaves RAM; needs root):
 
@@ -78,15 +87,48 @@ curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh 
 irm https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.ps1 | iex
 ```
 
-Then start the server with `start-blink.bat`. More options in [Install](#7-install).
+Then start the server with `start-blink.bat`. More options in [Install](#7-install). Want to read
+the installer first? [`install.sh`](install.sh) and [`install.ps1`](install.ps1) are short and
+commented. Or download `blink` from the [releases](https://github.com/kylianxdev/blinkmc/releases/latest)
+and run `blink init` and `blink start` yourself.
 
 | | Freeze and wake | Memory of a frozen server |
 |---|---|---|
-| Linux | yes (SIGSTOP) | moved to zswap and swap by Blink (full install) |
+| Linux | yes (SIGSTOP) | compressed (zswap), after 10 minutes to the swap file: 7 MB (full install) |
 | macOS | yes (SIGSTOP) | compressed by macOS itself when it needs RAM |
-| Windows | yes (NtSuspendProcess) | handed to Windows' memory compression by Blink |
+| Windows | yes (NtSuspendProcess) | handed to Windows' memory compression and page file by Blink |
 
-All three are tested on every change with a real Paper server (GitHub Actions).
+The installers and Blink are tested on every change with a real Paper server on all three
+(GitHub Actions): install, start, freeze, wake up with a join, stop, restore.
+
+**Requirements.** The Java your Minecraft version needs. Paper with **Java 26** starts in 4 s
+instead of 13 s (Java's AOT cache). With an older Java it starts at its normal speed, and waking a
+frozen server is just as fast. We test on Paper 26.3; other versions work the same way.
+
+## What Blink changes
+
+Nothing in your world, your plugins or mods, or the server jar. In the server folder:
+
+* **`blink.toml`**, Blink's settings ([every setting explained](res/blink.toml)).
+* **`server.properties`**: the server moves to a port of its own (yours + 10000) on 127.0.0.1, and
+  Blink takes your port, so players keep the same address. `max-tick-time=-1`, because vanilla's
+  watchdog would see a frozen server as one very long tick.
+* **Paper**: its watchdog (`spigot.yml`, `paper-global.yml`) is raised to 20 days for the same
+  reason, `restart-on-crash` is off, the PROXY protocol is on so the server sees players' real IPs,
+  and spark's background profiler is off. With Java 26 there is also `paper.aot` (the cache, about
+  230 MB).
+
+On Linux the full install also adds a systemd service, a swap file if you have no swap, zswap with
+lz4 and two sysctls (`vm.swappiness=10`, `vm.page-cluster=0`). The portable and Windows installs
+change nothing outside the server folder.
+
+**All of it is undone** by `blink restore` (only the values Blink set; your other edits stay) or the
+installer's `--uninstall` (Windows: `-Uninstall`, see [Install](#7-install)).
+
+**What Blink sends:** once a day it downloads a 1 byte file from this project's GitHub releases, so
+GitHub's download count tells us how many servers use Blink. Nothing is sent: no names, no players,
+no settings. Off with `usage_stats = false` in `blink.toml` or `DO_NOT_TRACK=1`; Blink says at
+start whether it is on.
 
 ## Greener, even if your VPS has the RAM anyway
 
@@ -141,10 +183,10 @@ Setup, per backend server:
    the proxy's timeout to be safe (BungeeCord `server_connect_timeout: 15000`, Velocity
    `connection-timeout = 15000`).
 
-**Safe for your world?** Blink saves the world before every freeze and lets Paper save and stop
-normally when you stop it, also while frozen. Nothing in Paper or your world is changed. Still: try
-it on a copy or with a fresh backup first, like any tool that runs your server. `--uninstall` puts
-everything back.
+**Safe for your world?** Blink saves the world (`save-all flush`) before every freeze and lets the
+server save and stop normally when you stop it, also while frozen. Nothing in your world is
+changed. Still: try it on a copy or with a fresh backup first, like any tool that runs your server.
+`blink restore` or `--uninstall` puts the server's settings back ([what Blink changes](#what-blink-changes)).
 
 ## Blink vs lazymc
 
@@ -153,15 +195,16 @@ Same machine, same Paper 26.3 server, measured October 2026.
 | | lazymc 0.2.11 | Blink 2 |
 |---|---|---|
 | Works with Paper 26.3 | **no**: never sees that the server is up; every player is held 25 s, then kicked | yes |
-| Join on a sleeping server | never gets in (if it did: a 13 s cold start) | **0.1 to 0.4 s** (thaw), 4.4 s cold |
+| Join on a sleeping server, until in the world | never gets in (if it did: a 13 s cold start) | **0.5 to 0.9 s** (thaw), 4.4 s cold |
 | Memory of the proxy | 5.7 MB, 10 threads | **1.5 MB**, 2 threads |
 | Program | 3.9 MB + glibc | **1.6 MB**, one static file |
 | Sleeping server | stopped (0 MB, cold start) or frozen with all its memory (1 to 3 GB) | **7 MB** after 10 minutes frozen |
-| Saves before sleeping | no | yes, `save-all` and waits for it |
+| Saves before sleeping | no | yes, `save-all flush` and waits for it |
 | Stop while asleep | Ctrl+C never reaches a frozen server; systemd kills it after its timeout | thaws, saves and stops in 1 to 2 s |
 | Players' real IPs | manual setup on both sides | automatic (PROXY protocol) |
 | Console | needs the terminal | through Blink, also for scripts |
 | Fast start for Paper | no | built in (Java AOT cache) |
+| Fabric, Forge, NeoForge | by hand | `blink init` sets them up |
 | Throughput | | about 1 GB/s on one thread, more with `threads` |
 
 The rest of this README is written as a short paper: what we wanted, how we got there and what
@@ -179,7 +222,8 @@ the hard part. Blink is a sleep proxy (built on **lazymc**) with two ways back:
 
 1. **Freeze.** The JVM is paused instead of stopped. Linux moves its memory into compressed RAM
    (zswap) and swap, and the heap shrinks itself first when the server is quiet. A sleeping server
-   keeps about 0.3 GB of its 3 GB. A join continues the paused process: **0.1 to 0.4 s**.
+   keeps about 0.3 GB of its 3 GB, and 7 MB after 10 minutes. A join continues the paused process:
+   the server takes it **0.1 to 0.4 s** later, and the player is in the world in **0.5 to 0.9 s**.
 2. **Cold start.** For reboots and updates. Paper is started without its paperclip launcher so
    **Java's AOT cache** (Project Leyden) can hold all of its classes. Java 26's streamable AOT
    objects are needed, because Minecraft's method type table is too big for the older format.
@@ -321,8 +365,8 @@ adds:
   so Blink passes the join on at once instead of first asking the server for its status (a just
   thawed server can take seconds to answer that).
 * **Save, then freeze after 30 seconds.** With a 0.3 s wake up there is no reason to wait long.
-  Minecraft does not save when it pauses an empty server, so Blink types `save-all` in the console,
-  waits for "Saved the game", checks that nobody joined meanwhile, and only then freezes. A reboot of the machine while the server is frozen loses nothing.
+  Minecraft does not save when it pauses an empty server, so Blink types `save-all flush` in the
+  console, waits for "Saved the game", checks that nobody joined meanwhile, and only then freezes. A reboot of the machine while the server is frozen loses nothing.
 * **No read ahead from swap** (`vm.page-cluster=0`). With zswap, reading 8 pages per fault only adds
   latency. Together with the next point this took a wake up from 1.2 s to 0.1 s.
 * **Blink polls every 50 ms while waking**, instead of lazymc's 2 s, and does not poll a frozen server
@@ -339,7 +383,9 @@ adds:
 * **`wake_on_start`.** After a reboot the server starts right away and freezes after the idle time,
   so even the first join of the day is a thaw and not a cold start.
 
-Measured: three wake ups in a row of **0.1 s, 0.4 s and 0.4 s**, the same process every time.
+Measured: three wake ups in a row of **0.1 s, 0.4 s and 0.4 s** until the server takes the join, the same
+process every time. With the client's own login and loading the world, a player is in the world 0.5 to
+0.9 s after clicking Join.
 
 ### 3.7 From lazymc to Blink
 
@@ -387,6 +433,7 @@ Paper. Without it every player shows up as 127.0.0.1 and IP bans don't work.
 | Direct start, Java 25 AOT cache without class linking | 7.8 s | Paper: 7.5 s |
 | Direct start, Java 26 full AOT cache | 4.4 to 5.0 s | Paper: median 4.35 s over 25 starts |
 | **Thaw a frozen server (join until the real server answers)** | **0.1 to 0.4 s** | memory in zswap and swap |
+| **Thaw, from Join until the player is in the world** | **0.5 to 0.9 s** | about 3 s after 10 minutes asleep (from the swap file) |
 
 | Memory | Before Blink | Awake, empty | Frozen |
 |---|---|---|---|
@@ -439,14 +486,19 @@ regions. `tools/benchmark.sh` does the full run.
   the launcher simply starts without a cache.
 * **One server per Blink.** Behind BungeeCord or Velocity: one Blink per backend server (each uses
   about 1.4 MB). The proxy itself stays awake.
+* **Fabric, Forge and vanilla** sleep and wake the same way, but the fast cold start (the AOT cache)
+  is for Paper and its forks. Players' real IPs need a PROXY protocol mod there.
+* **Shared hosting.** Blink runs next to your server, so it needs a machine where you can run your
+  own programs: a VPS, a dedicated server or your own computer. Not tested in Docker or Pterodactyl
+  yet.
 * **Moving a frozen server's memory out of RAM** is strongest on Linux (zswap and swap, set up by the
   full install). On macOS and Windows the OS compresses it itself; it stays a bit bigger.
 
 ## 7. Install
 
 The commands are at the top. The full install needs Linux with systemd (Ubuntu, Debian and most
-others), on x86_64 or ARM, and a Paper server (or a Paper fork such as Purpur). Stop your server, go
-to its folder and run:
+others), on x86_64 or ARM. It works for Paper and its forks (Purpur and others), Fabric, Quilt,
+Forge, NeoForge and vanilla. Stop your server, go to its folder and run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash
@@ -461,23 +513,25 @@ curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh 
 | Option | Default | |
 |---|---|---|
 | `--dir PATH` | current folder | server folder |
-| `--heap SIZE` | 60% of RAM, at most 8G | maximum Java heap |
+| `--heap SIZE` | 60% of RAM, at most 8G | maximum Java heap (Forge: `user_jvm_args.txt` wins) |
 | `--sleep SECONDS` | 30 | save and freeze this many seconds after the last player left |
 | `--threads N` | 1 | threads for the players' traffic; 2 to 4 for hundreds of players |
 | `--name NAME` | minecraft | systemd service name (use another one per server) |
 | `--swap SIZE` | heap + 2G | swap file, only when there is no swap yet |
 | `--portable` | | no root, no service, no system changes (always on macOS) |
-| `--uninstall` | | undo everything for this server |
+| `--uninstall` | | undo everything for this server (with `--portable` for a portable install) |
 
 What it does, step by step:
 
-1. Finds your Paper jar and who owns the files (the server runs as that user).
-2. Installs Java 26, tmux and python3 when they are missing (apt).
+1. Finds your server (Paper jar, Fabric or vanilla jar, Forge's `run.sh`) and who owns the files
+   (the server runs as that user). Says so if the EULA isn't accepted yet.
+2. Installs tmux and curl when they are missing, and Java 26 for Paper when your package sources
+   have it (apt). Without it Paper starts without the AOT cache; nothing else changes.
 3. Downloads `blink` (checksum checked) to `/opt/blinkmc`.
-4. Writes `blink.toml` in your server folder. The protocol version and your MOTD are read from your
-   server. `server.properties` is kept as `server.properties.before-blink`.
+4. Writes `blink.toml` in your server folder, the first time only: running the installer again
+   keeps yours. The Minecraft version and your MOTD are read from your server.
 5. Sets up a swap file (if you have none), zswap with lz4, and two sysctls.
-6. Installs and starts the `minecraft` service.
+6. Installs and starts the service. If Blink stops by itself, systemd starts it again after 5 s.
 
 Running it again updates Blink (and Blink 1 installs are cleaned up).
 
@@ -489,20 +543,30 @@ sudo systemctl stop minecraft                          # saves and stops, also w
 python3 tools/status-ping.py localhost --join --name YourName   # test a wake up
 ```
 
+**Undo.** `--uninstall` (with the same `--name` and `--dir`) stops the service, puts back the
+server's port, Paper's watchdog and its PROXY protocol setting (only those: your other edits stay),
+and removes Blink and, if no other server uses Blink, its system settings. Windows:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.ps1))) -Uninstall
+```
+
+Or by hand, anywhere: `blink restore`, then delete `blink` and `blink.toml`.
+
 **Whitelist.** Optional. With the whitelist on in `server.properties`, only whitelisted players can
 wake the server. With it off, anyone can, also new players. Bots that wake it only keep it awake
 until the next freeze; `wake_known_players = true` in `blink.toml` stops them, but also new players.
 
-**All settings** are in [`res/blink.toml`](res/blink.toml), with an explanation for each.
+**The console.** What you type goes to the server, as before. `stop` stops the server and Blink
+(as Ctrl+C does), also when the server is frozen; in the systemd service, Blink starts again after
+5 s, so use `systemctl stop` to stop it for good.
 
-**Anonymous usage count.** Once a day Blink downloads a 1 byte file from this project's GitHub
-releases, and GitHub counts the downloads. That is the only way we know how many servers use
-Blink. Nothing is sent: no server name, no players, no settings. Turn it off with
-`usage_stats = false` in `blink.toml` or `DO_NOT_TRACK=1`; Blink says at start whether it is on.
+**All settings** are in [`res/blink.toml`](res/blink.toml), with an explanation for each.
+`blink config test` checks yours.
 
 **Without the installer.** Put the `blink` binary for your OS from the
 [releases](https://github.com/kylianxdev/blinkmc/releases/latest) in your server folder, run
-`blink init` (writes `blink.toml`) and `blink start`.
+`blink init` (writes `blink.toml` for Paper, Fabric, Forge, NeoForge or vanilla) and `blink start`.
 
 **BlueMap (optional).** BlueMap's web server would freeze with the server. Run BlueMap's CLI as its
 own web server instead (`systemd/bluemap-web.service`, see section 3.8).
@@ -523,18 +587,19 @@ sudo BLINK_BINARY=target/x86_64-unknown-linux-musl/release/blink bash install.sh
 | `src/` | Blink (Rust, based on lazymc); `src/blink.rs` has the console, save and memory reclaim |
 | `src/launcher.rs` | The built in Paper launcher (AOT cache, watchdog, PROXY protocol), every OS |
 | `src/action/init.rs` | `blink init`: writes `blink.toml` for the server in a folder |
+| `src/action/restore.rs` | `blink restore`: puts the server's own settings back |
 | `res/blink.toml` | All settings, explained |
 | `install.sh`, `install.ps1` | Installers for Linux and macOS, and for Windows |
 | `.github/workflows/build.yml` | Builds for 5 platforms and tests a real server on Linux, macOS and Windows |
 | `systemd/bluemap-web.service` | Optional: BlueMap's web server, separate from the game server |
-| `tools/smoke-test.py` | End to end test: start, freeze, wake up, stop (what CI runs) |
+| `tools/smoke-test.py` | End to end test: start, freeze, wake up, stop, restore (what CI runs, after the installers) |
 | `tools/network-test.py` | A proxy with five servers: bots join, switch worlds, leave; times and RAM |
 | `tools/netbot.py` | A tiny Minecraft 26.3 client for those tests (login, configuration, `/server`) |
 | `tools/thaw-bench.py` | Repeatedly: switch to a frozen server through the proxy, time until in game |
 | `tools/benchmark.sh` | Cold starts, memory with simulated players, freeze and wake |
 | `tools/proxy-bench/` | Throughput of the proxy |
 | `tools/status-ping.py` | Server list ping, or a test join that wakes the server |
-| `docs/` | The website |
+| `docs/` | The website; `docs/banner.html` renders the banner and the link preview image |
 
 ## License
 

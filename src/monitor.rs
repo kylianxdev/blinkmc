@@ -134,7 +134,7 @@ async fn fetch_status(config: &Config, addr: SocketAddr) -> Result<ServerStatus,
     let mut stream = TcpStream::connect(addr).await.map_err(|_| ())?;
 
     // Add proxy header
-    if config.server.send_proxy_v2 {
+    if crate::server::proxy_header() {
         trace!(target: "lazymc::monitor", "Sending local proxy header for server connection");
         stream
             .write_all(&proxy::local_proxy_header().map_err(|_| ())?)
@@ -155,7 +155,7 @@ async fn do_ping(config: &Config, addr: SocketAddr) -> Result<(), ()> {
     let mut stream = TcpStream::connect(addr).await.map_err(|_| ())?;
 
     // Add proxy header
-    if config.server.send_proxy_v2 {
+    if crate::server::proxy_header() {
         trace!(target: "lazymc::monitor", "Sending local proxy header for server connection");
         stream
             .write_all(&proxy::local_proxy_header().map_err(|_| ())?)

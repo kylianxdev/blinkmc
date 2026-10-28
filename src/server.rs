@@ -34,6 +34,21 @@ const RCON_COOLDOWN: Duration = Duration::from_secs(15);
 /// - 130: https://unix.stackexchange.com/q/386836/61092
 const ALLOWED_EXIT_CODES: [i32; 2] = [130, 143];
 
+/// Whether the server accepts the PROXY header right now (Blink runs one server). Follows
+/// `send_proxy_v2`, except on the very first start of a new Paper server, before it wrote the
+/// setting that turns the PROXY protocol on.
+static PROXY_HEADER: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Whether to send the PROXY header to the server.
+pub fn proxy_header() -> bool {
+    PROXY_HEADER.load(Ordering::Relaxed)
+}
+
+/// Set whether to send the PROXY header to the server.
+pub fn set_proxy_header(on: bool) {
+    PROXY_HEADER.store(on, Ordering::Relaxed);
+}
+
 /// Shared server state.
 #[derive(Debug)]
 pub struct Server {
@@ -171,10 +186,15 @@ impl Server {
             _ => None,
         };
 
-        // Online/offline messages
+        // Online/offline messages. A frozen server still has its process; a server that quit
+        // while starting gets its own error (invoke_server_cmd).
+        let frozen = self.pid.try_lock().map(|pid| pid.is_some()).unwrap_or(true);
         match new {
             State::Started => info!(target: "lazymc::monitor", "Server is now online"),
-            State::Stopped => info!(target: "lazymc::monitor", "Server is now sleeping"),
+            State::Stopped if frozen => info!(target: "lazymc::monitor", "Server is now sleeping"),
+            State::Stopped if old != State::Starting => {
+                info!(target: "lazymc::monitor", "Server stopped; the next join starts it again")
+            }
             _ => {}
         }
 
@@ -266,8 +286,12 @@ impl Server {
     /// Stop the server process for real, also when it is frozen: thaw it, then ask it to stop
     /// gracefully so it saves the world.
     pub async fn stop_for_real(&self, config: &Config) -> bool {
-        if let Some(pid) = *self.pid.lock().await {
+        let pid = *self.pid.lock().await;
+        if let Some(pid) = pid {
             crate::os::unfreeze(pid);
+            // a frozen server counts as stopped: mark it stopping, so a join meanwhile gets the
+            // "going to sleep" message instead of being passed to a server that is shutting down
+            self.update_state_from(Some(State::Stopped), State::Stopping, config).await;
         }
         if stop_server_console(config, self).await {
             return true;
@@ -528,11 +552,17 @@ pub async fn invoke_server_cmd(
     config: Arc<Config>,
     state: Arc<Server>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Configure command
-    let args = shlex::split(&config.server.command).expect("invalid server command");
+    // Configure command (checked when the config was loaded)
+    let args = match shlex::split(&config.server.command).filter(|a| !a.is_empty()) {
+        Some(args) => args,
+        None => {
+            error!(target: "lazymc", "Can't start the server: server.command in blink.toml is empty or has an unclosed quote");
+            return Err("invalid server command".into());
+        }
+    };
+    let dir = ConfigServer::server_directory(&config).unwrap_or_else(|| ".".into());
     let mut cmd = if args[0] == "blink-paper" {
         // Blink's built in Paper launcher (src/launcher.rs), settings as KEY=VALUE arguments
-        let dir = ConfigServer::server_directory(&config).unwrap_or_else(|| ".".into());
         let (rest, proxy) = (args[1..].to_vec(), config.server.send_proxy_v2);
         let launch = tokio::task::spawn_blocking(move || crate::launcher::prepare(&dir, &rest, proxy))
             .await
@@ -545,10 +575,18 @@ pub async fn invoke_server_cmd(
                 return Err(err.into());
             }
         };
+        set_proxy_header(launch.proxy);
         let mut cmd = Command::new(&launch.java);
         cmd.args(&launch.args);
         cmd
     } else {
+        // Any other server (Fabric, Forge, vanilla, a start script): the same watchdog and PROXY
+        // protocol settings, where its files have them
+        let proxy = config.server.send_proxy_v2;
+        let proxy = tokio::task::spawn_blocking(move || crate::launcher::prepare_server_files(&dir, proxy, false))
+            .await
+            .unwrap_or(proxy);
+        set_proxy_header(proxy);
         let mut cmd = Command::new(&args[0]);
         cmd.args(args.iter().skip(1));
         cmd
@@ -577,7 +615,7 @@ pub async fn invoke_server_cmd(
     let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(err) => {
-            error!(target: "lazymc", "Failed to start server process through command");
+            error!(target: "lazymc", "Could not run the server command ({}): {err}", args[0]);
             return Err(err.into());
         }
     };
@@ -615,6 +653,18 @@ pub async fn invoke_server_cmd(
             false
         }
     };
+
+    // Quit before it was ever up: say why it may have happened, instead of "sleeping"
+    if state.state() == State::Starting {
+        let eula = ConfigServer::server_directory(&config)
+            .and_then(|dir| std::fs::read_to_string(dir.join("eula.txt")).ok())
+            .is_some_and(|text| text.lines().any(|l| l.trim() == "eula=true"));
+        if eula {
+            error!(target: "lazymc", "The server quit while starting. Its output above says why (a newer Java needed, a broken plugin, a port in use?)");
+        } else {
+            error!(target: "lazymc", "The server quit while starting: accept the Minecraft EULA first (eula=true in eula.txt, https://aka.ms/MinecraftEULA)");
+        }
+    }
 
     // Forget server PID and console
     state.pid.lock().await.take();
@@ -783,8 +833,9 @@ async fn stop_server_console(config: &Config, server: &Server) -> bool {
 
 /// Run the before_freeze command in the server directory, at most 60 seconds.
 async fn run_before_freeze(config: &Config, command: &str) {
-    let mut cmd = tokio::process::Command::new("sh");
-    cmd.arg("-c").arg(command);
+    let (shell, flag) = if cfg!(windows) { ("cmd", "/C") } else { ("sh", "-c") };
+    let mut cmd = tokio::process::Command::new(shell);
+    cmd.arg(flag).arg(command);
     if let Some(dir) = ConfigServer::server_directory(config) {
         cmd.current_dir(dir);
     }
@@ -816,9 +867,10 @@ async fn unfreeze_server_signal(config: &Config, server: &Server) -> bool {
     server.deep.store(false, Ordering::SeqCst);
 
     // A thawed server was running when it was frozen, so it is ready right away: let held players
-    // through now instead of waiting for a status check (which a just thawed server can answer slowly)
+    // through now instead of waiting for a status check (which a just thawed server can answer
+    // slowly). Server::start already moved the state from Stopped to Starting.
     server
-        .update_state_from(Some(State::Stopping), State::Started, config)
+        .update_state_from(Some(State::Starting), State::Started, config)
         .await;
     server
         .update_state_from(Some(State::Stopped), State::Started, config)
@@ -853,9 +905,42 @@ mod tests {
                 max: 20,
                 sample: vec![],
             },
-            description: String::new(),
+            description: minecraft_protocol::version::v1_20_3::status::Description::Text(String::new()),
             favicon: None,
         }
+    }
+
+    /// A process that stands in for a frozen server.
+    fn stand_in() -> std::process::Child {
+        if cfg!(windows) {
+            std::process::Command::new("ping").args(["-n", "30", "127.0.0.1"]).stdout(std::process::Stdio::null()).spawn().unwrap()
+        } else {
+            std::process::Command::new("sleep").arg("30").spawn().unwrap()
+        }
+    }
+
+    #[tokio::test]
+    async fn a_join_on_a_frozen_server_lets_the_player_through_at_once() {
+        let config = Arc::new(test_config());
+        let server = Arc::new(Server::default());
+        let mut child = stand_in();
+        server.pid.lock().await.replace(child.id());
+
+        assert!(Server::start(config, server.clone(), Some("Steve".into())).await);
+        assert_eq!(server.state(), State::Started, "a thawed server is ready right away");
+        let _ = child.kill();
+    }
+
+    #[tokio::test]
+    async fn stopping_a_frozen_server_is_not_sleeping() {
+        let config = test_config();
+        let server = Server::default();
+        let mut child = stand_in();
+        server.pid.lock().await.replace(child.id());
+
+        server.stop_for_real(&config).await;
+        assert_eq!(server.state(), State::Stopping, "a join meanwhile must not thaw a server that shuts down");
+        let _ = child.kill();
     }
 
     #[tokio::test]

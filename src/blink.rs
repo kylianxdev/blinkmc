@@ -27,6 +27,8 @@ pub struct Console {
     stdin: Mutex<Option<ChildStdin>>,
     saves: AtomicU64,
     saved: Notify,
+    /// `stop` was typed: stop the server and Blink, like Ctrl+C (service/signal.rs).
+    pub shutdown: Notify,
 }
 
 impl Console {
@@ -62,6 +64,13 @@ impl Console {
         tokio::spawn(async move {
             let mut lines = BufReader::new(tokio::io::stdin()).lines();
             while let Ok(Some(line)) = lines.next_line().await {
+                // "stop" on its own would stop the server and leave Blink waiting for the next
+                // join; whoever types it wants both to stop, also when the server is frozen
+                if matches!(line.trim().trim_start_matches('/'), "stop" | "end") {
+                    eprintln!(" INFO  blink > Stopping the server and Blink (as with Ctrl+C)");
+                    console.shutdown.notify_one();
+                    continue;
+                }
                 if !console.command(&line).await {
                     eprintln!(" INFO  blink > The server is not running, join to wake it up");
                 }
@@ -87,13 +96,14 @@ impl Console {
         *self.stdin.lock().await = None;
     }
 
-    /// Make the server save its world and wait until it is on disk (at most 30 seconds).
+    /// Make the server save its world and wait until it is on disk (at most 30 seconds). `flush`
+    /// makes Minecraft write every chunk before it says "Saved the game", instead of queueing them.
     pub async fn save(&self) -> bool {
         let before = self.saves.load(Ordering::SeqCst);
         let saved = self.saved.notified();
         tokio::pin!(saved);
         saved.as_mut().enable();
-        if !self.command("save-all").await {
+        if !self.command("save-all flush").await {
             return false;
         }
         let wait = async {
@@ -123,9 +133,10 @@ pub fn usage_stats(enabled: bool) {
     info!(target: "lazymc", "Anonymous usage count is on: one download a day from GitHub, nothing is sent (usage_stats = false turns it off)");
     tokio::spawn(async {
         tokio::time::sleep(Duration::from_secs(10 * 60)).await;
+        let null = if cfg!(windows) { "NUL" } else { "/dev/null" };
         loop {
             let _ = tokio::process::Command::new("curl")
-                .args(["-fsL", "-o", "/dev/null", "--max-time", "30", USAGE_URL])
+                .args(["-fsL", "-o", null, "--max-time", "30", USAGE_URL])
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
@@ -175,7 +186,10 @@ pub fn deep_sleep(pid: u32) {
         let mut stuck = 0;
         for _ in 0..30 {
             let current = std::fs::read_to_string(dir.join("memory.current")).unwrap_or_default();
-            let _ = std::fs::write(dir.join("memory.reclaim"), format!("{} swappiness=200", current.trim()));
+            let reclaim = std::fs::write(dir.join("memory.reclaim"), format!("{} swappiness=200", current.trim()));
+            if matches!(&reclaim, Err(err) if err.raw_os_error() == Some(libc::EINVAL)) {
+                let _ = std::fs::write(dir.join("memory.reclaim"), current.trim());
+            }
             std::thread::sleep(Duration::from_millis(700));
             let now = read_mb(&dir, "memory.current");
             if now < 16 {
@@ -265,9 +279,14 @@ async fn reclaim(pid: u32) {
         return;
     }
     let before = read_mb(&dir, "memory.current");
-    // all but 64 MB; swappiness=200: the Java heap first, file cache last
-    let request = format!("{}M swappiness=200", before.saturating_sub(64));
-    match tokio::fs::write(dir.join("memory.reclaim"), request).await {
+    // all but 64 MB; swappiness=200: the Java heap first, file cache last (kernels before 6.11
+    // don't know swappiness= and say EINVAL: ask again without it)
+    let amount = format!("{}M", before.saturating_sub(64));
+    let mut result = tokio::fs::write(dir.join("memory.reclaim"), format!("{amount} swappiness=200")).await;
+    if matches!(&result, Err(err) if err.raw_os_error() == Some(libc::EINVAL)) {
+        result = tokio::fs::write(dir.join("memory.reclaim"), &amount).await;
+    }
+    match result {
         Ok(()) => {}
         // the kernel could not reclaim all of it, which is fine
         Err(err) if err.raw_os_error() == Some(libc::EAGAIN) => {}

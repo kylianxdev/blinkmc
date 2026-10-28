@@ -1,3 +1,4 @@
 /target
 /blink.toml
 .env
+__pycache__/

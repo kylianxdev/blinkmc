@@ -1,0 +1,62 @@
+<!doctype html>
+<!--
+  The source of assets/banner.png (README) and assets/social.png (link previews). Render with:
+    msedge --headless --hide-scrollbars --window-size=1280,400 --screenshot=assets/banner.png "file:///.../docs/banner.html"
+    msedge --headless --hide-scrollbars --window-size=1280,640 --screenshot=assets/social.png "file:///.../docs/banner.html?social"
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blink banner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=block" rel="stylesheet">
+<style>
+@font-face{font-family:Monocraft;src:url(assets/fonts/monocraft.woff2) format("woff2");font-display:block}
+html,body{margin:0;width:1280px;height:400px;overflow:hidden}
+html.social,html.social body{height:640px}
+body{background-color:#0b1026;background:radial-gradient(ellipse 900px 520px at 300px -40px,#24307a 0,#121a4a 45%,#0b1026 80%);font-family:Inter,system-ui,sans-serif;position:relative}
+#stars i{position:absolute;width:3px;height:3px;background:#cfd6ff}
+.row{position:absolute;left:0;right:0;top:0;bottom:30px;display:flex;align-items:center;gap:54px;padding-left:90px}
+html.social .row{padding-left:100px;gap:60px}
+.eye{position:relative;width:256px;height:160px;flex:none}
+.eye::before{content:"";position:absolute;inset:-70px -60px;background:radial-gradient(closest-side,rgba(52,211,120,.28),rgba(52,211,120,0) 70%)}
+.eye img{position:relative;width:256px;height:160px;image-rendering:pixelated}
+html.social .eye,html.social .eye img{width:292px;height:182px}
+h1{font:400 84px/1 Monocraft,monospace;color:#eef1ff;-webkit-text-stroke:5px #eef1ff;paint-order:stroke;text-shadow:7px 7px 0 #000;margin:0 0 24px;letter-spacing:8px}
+html.social h1{font-size:100px}
+p{margin:0 0 22px;font-size:27px;line-height:1.42;color:#93a0d6}
+html.social p{font-size:30px}
+p b{color:#5ee08f;font-weight:600}
+.tags{display:flex;gap:14px;flex-wrap:nowrap}
+.tags span{font:400 15px Monocraft,monospace;color:#10132a;-webkit-text-stroke:.7px #10132a;padding:7px 12px;border:2px solid #000;box-shadow:4px 4px 0 #000;letter-spacing:1px;white-space:nowrap}
+html.social .tags span{font-size:15px}
+.g{background:#3ec46a}.y{background:#f5c542}.b{background:#7c96ff}.p{background:#c99bff}
+.grass{position:absolute;left:0;right:0;bottom:0;height:30px;border-top:3px solid #0a1a08;background:repeating-linear-gradient(90deg,#5aa83a 0 20px,#4b9530 20px 40px)}
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="row">
+  <div class="eye"><img src="assets/eye.png" alt=""></div>
+  <div>
+    <h1>BLINK</h1>
+    <p>Your Minecraft server sleeps when nobody plays<br>and is <b>back in the world within a second</b> on a join.</p>
+    <div class="tags"><span class="g">IN GAME &lt; 1 S</span><span class="y">7 MB ASLEEP</span><span class="b">BUNGEE + VELOCITY</span><span class="p">PAPER FABRIC FORGE</span></div>
+  </div>
+</div>
+<div class="grass"></div>
+<script>
+if (location.search.includes("social")) document.documentElement.classList.add("social");
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const h = document.documentElement.classList.contains("social") ? 600 : 360;
+for (let n = 0; n < 70; n++) {
+  const i = document.createElement("i");
+  i.style.left = Math.round(rnd() * 1270) + "px";
+  i.style.top = Math.round(rnd() * h) + "px";
+  i.style.opacity = (0.35 + rnd() * 0.65).toFixed(2);
+  document.getElementById("stars").appendChild(i);
+}
+</script>
+</body>
+</html>

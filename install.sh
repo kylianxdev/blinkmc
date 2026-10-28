@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Blink installer: your Minecraft server sleeps when nobody plays and wakes up in a blink.
+# Blink installer: your Minecraft server sleeps when nobody plays and wakes up when someone joins.
 #
-#   cd /path/to/your/server        # the folder with paper.jar
+#   cd /path/to/your/server        # paper.jar, a Fabric or vanilla jar, or Forge's run.sh
 #   curl -fsSL https://raw.githubusercontent.com/kylianxdev/blinkmc/main/install.sh | sudo bash
 #
 # Without root (and on macOS): only puts blink in your server folder, changes nothing else
@@ -15,13 +15,17 @@
 #   --threads N      threads for the players' traffic (default: 1, plenty below ~1000 players)
 #   --name NAME      name of the systemd service (default: minecraft)
 #   --swap SIZE      size of the swap file when there is none yet (default: heap + 2G)
-#   --uninstall      undo everything for this server (keeps swap and zswap)
+#   --uninstall      undo everything for this server (also the system settings, if no other
+#                    server uses Blink; a swap file stays, see the message)
 #   BLINK_BINARY=/path/to/blink   use a blink you built yourself instead of the release
 #
-# The full install (Linux, root) also installs Java 26 if needed, sets up a swap file and zswap
-# (so a frozen server's memory can leave RAM) and runs everything as a systemd service. Your own
-# files stay as they are (server.properties is kept as server.properties.before-blink, because
-# Blink moves the server to another port in there).
+# What the full install (Linux, root) changes, all undone by --uninstall:
+#   * /opt/blinkmc/blink and a systemd service ($NAME) that runs it in tmux
+#   * Java 26 (apt) if there is no Java 26 yet, tmux and curl if missing
+#   * a swap file if there is no swap (--swap), zswap with lz4, vm.swappiness=10, vm.page-cluster=0
+#   * in the server folder: blink.toml; when Blink starts the server, the port in server.properties
+#     (the server moves behind Blink), Paper's watchdog and its PROXY protocol setting
+# Running it again updates Blink and keeps your blink.toml.
 set -euo pipefail
 
 REPO=${BLINK_REPO:-kylianxdev/blinkmc}
@@ -40,7 +44,7 @@ while [ $# -gt 0 ]; do
     --threads) THREADS=$2; shift ;;
     --portable) PORTABLE=1 ;;
     --uninstall) UNINSTALL=1 ;;
-    -h|--help) sed -n '2,25p' "$0" 2>/dev/null || echo "see $RAW/install.sh"; exit 0 ;;
+    -h|--help) sed -n '2,29p' "$0" 2>/dev/null || echo "see $RAW/install.sh"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 1 ;;
   esac
   shift
@@ -77,26 +81,50 @@ download_blink() {   # $1: where to put it
   rm -rf "$tmp"
 }
 
+eula_note() {
+  grep -qs '^eula=true' "$DIR/eula.txt" \
+    || warn "accept the Minecraft EULA first (https://aka.ms/MinecraftEULA): put eula=true in $DIR/eula.txt"
+}
+
+# blink.toml: written once, kept when this runs again (an update)
+write_config() {   # $@: how to run blink
+  if [ -f "$DIR/blink.toml" ]; then
+    step "Keeping your blink.toml (delete it and run this again for a fresh one)"
+    return
+  fi
+  step "Writing blink.toml"
+  local args=(--sleep "$SLEEP" --threads "$THREADS")
+  [ -n "$HEAP" ] && args+=(--heap "$HEAP")
+  "$@" init "${args[@]}"
+}
+
 # ---------------------------------------------------------------- portable: no root, no changes
-if [ "$PORTABLE" = 1 ] && [ "$UNINSTALL" = 0 ]; then
+if [ "$PORTABLE" = 1 ]; then
+  if [ "$UNINSTALL" = 1 ]; then
+    step "Removing Blink from $DIR"
+    if [ -x "$DIR/blink" ] && [ -f "$DIR/blink.toml" ]; then "$DIR/blink" restore -c "$DIR/blink.toml"; fi
+    rm -f "$DIR/blink" "$DIR/blink.toml"
+    echo "  done. Start your server the way you did before Blink."
+    exit 0
+  fi
   step "Putting blink in $DIR"
+  pgrep -f "^$DIR/blink start" >/dev/null 2>&1 && die "Blink is running in $DIR; stop it first (Ctrl+C or type stop), then run this again"
   download_blink "$DIR/blink"
   echo "  $("$DIR/blink" --version)"
-  step "Writing blink.toml"
-  args=(--sleep "$SLEEP" --threads "$THREADS" --force)
-  [ -n "$HEAP" ] && args+=(--heap "$HEAP")
-  "$DIR/blink" init "${args[@]}"
+  write_config "$DIR/blink"
   cat <<D
 
 ${G}${B}Done.${N} Start your server with Blink from now on:
 
   cd $DIR && ./blink start
 
-  It needs Java 26 (the newest JDK on your machine is used; set JAVA= in blink.toml to choose).
-  Keep it running in tmux or screen if you close the terminal. Stop it with Ctrl+C: the server
-  saves and stops, also while it is frozen.
+  Paper starts fastest with Java 26 (the newest Java on your machine is used; set JAVA= in
+  blink.toml to choose). Keep it running in tmux or screen if you close the terminal. Stop it
+  with Ctrl+C or by typing stop: the server saves and stops, also while it is frozen.
+  Undo:  curl -fsSL $RAW/install.sh | bash -s -- --portable --uninstall --dir $DIR
 
 D
+  eula_note
   exit 0
 fi
 
@@ -121,18 +149,34 @@ if [ "$UNINSTALL" = 1 ]; then
   systemctl disable --now "$NAME" 2>/dev/null || true
   rm -f "$UNIT"
   cleanup_blink1
-  [ -f "$DIR/server.properties.before-blink" ] && mv -f "$DIR/server.properties.before-blink" "$DIR/server.properties" && echo "  restored server.properties"
-  rm -f "$DIR"/blink "$DIR"/blink.toml "$DIR"/paper.aot "$DIR"/paper.aot.config "$DIR"/paper.aot.stamp "$DIR"/classpath.txt
+  # the server's own port, watchdog and PROXY protocol setting back; your other edits stay
+  if [ -x "$OPT/blink" ] && [ -f "$DIR/blink.toml" ]; then
+    sudo -u "$(stat -c %U "$DIR/blink.toml")" "$OPT/blink" restore -c "$DIR/blink.toml" || warn "blink restore failed; check server.properties"
+  fi
+  rm -f "$DIR"/blink "$DIR"/blink.toml
   systemctl daemon-reload
-  echo "  done. Swap, zswap and /opt/blinkmc are left in place (other servers may use them)."
-  echo "  Paper's watchdog settings in spigot.yml stay raised; set timeout-time back to 60 if you like."
+  # the system settings, unless another server still uses Blink
+  if ! grep -qs "$OPT/blink start" /etc/systemd/system/*.service; then
+    rm -f /etc/sysctl.d/90-blink.conf /etc/modules-load.d/blink-zswap.conf /etc/tmpfiles.d/blink-zswap.conf
+    rm -rf "$OPT"
+    sysctl -q --system >/dev/null 2>&1 || true
+    echo "  removed Blink's system settings and $OPT"
+    grep -qs '^/swapfile ' /etc/fstab && echo "  the swap file stays (other programs may use it). Remove it with: sudo swapoff /swapfile && sudo sed -i '\\|^/swapfile |d' /etc/fstab && sudo rm /swapfile"
+  else
+    echo "  other servers still use Blink: kept $OPT and the system settings"
+  fi
+  echo "  done. Start your server the way you did before Blink."
   exit 0
 fi
 
 step "Checking $DIR"
-JAR=$(ls paper.jar *.jar 2>/dev/null | head -1 || true)
-[ -n "$JAR" ] || die "no server jar here (Paper, Purpur and other Paper forks work)"
-OWNER=$(stat -c %U "$JAR")
+FILE=$(ls -1 paper.jar *.jar run.sh 2>/dev/null | head -1 || true)
+[ -n "$FILE" ] || die "no Minecraft server here: run this in the folder with paper.jar, a Fabric or vanilla jar, or Forge's run.sh"
+PAPER=0
+for j in paper.jar *.jar; do   # Paper's launcher lists (zip file names are stored as plain text)
+  [ -f "$j" ] && grep -qa 'META-INF/versions.list' "$j" && { PAPER=1; break; }
+done
+OWNER=$(stat -c %U "$FILE")
 [ "$OWNER" != root ] || warn "the server files belong to root; the server will run as root"
 echo "  runs as: $OWNER"
 
@@ -148,25 +192,37 @@ fi
 if ss -ltnH "sport = :$PORT" | grep -q .; then
   die "port $PORT is in use. Stop your Minecraft server first, then run this again."
 fi
-grep -qs '^eula=true' eula.txt || warn "eula.txt does not say eula=true yet; the server won't start until you accept the Minecraft EULA there"
+eula_note
 
 step "Installing what is missing"
-JAVA=""
+# the newest Java on the machine, and its version
+JAVA="" JV=0
 for j in /usr/lib/jvm/*/bin/java; do
   [ -x "$j" ] || continue
   v=$("$j" -XshowSettings:properties -version 2>&1 | sed -n 's/.*java.specification.version = //p')
-  [ "${v%%.*}" -ge 26 ] 2>/dev/null && JAVA=$j
+  v=${v%%.*}
+  [ "${v:-0}" -gt "$JV" ] 2>/dev/null && JAVA=$j JV=$v
 done
 need=()
 command -v tmux >/dev/null || need+=(tmux)
 command -v curl >/dev/null || need+=(curl)
-[ -n "$JAVA" ] || need+=(openjdk-26-jre-headless)
 if [ ${#need[@]} -gt 0 ]; then
-  command -v apt-get >/dev/null || die "please install: ${need[*]} (Java 26 or newer)"
+  command -v apt-get >/dev/null || die "please install: ${need[*]}"
   apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${need[@]}" >/dev/null
-  [ -n "$JAVA" ] || JAVA=$(ls /usr/lib/jvm/*26*/bin/java | head -1)
+fi
+# Paper starts in 4 s instead of 13 with Java 26 (the AOT cache); freezing works with any Java
+if [ "$PAPER" = 1 ] && [ "$JV" -lt 26 ] && command -v apt-get >/dev/null; then
+  apt-get update -qq || true
+  if DEBIAN_FRONTEND=noninteractive apt-get install -y -qq openjdk-26-jre-headless >/dev/null 2>&1; then
+    JAVA=$(ls /usr/lib/jvm/*26*/bin/java | head -1) JV=26
+  fi
+fi
+if [ -z "$JAVA" ]; then
+  command -v java >/dev/null || die "no Java found. Install the Java your Minecraft version needs (Java 26 for the fastest Paper starts), for example from https://adoptium.net/installation/linux/"
+  JAVA=$(readlink -f "$(command -v java)")
 fi
 echo "  java: $JAVA"
+[ "$PAPER" = 1 ] && [ "$JV" -lt 26 ] && warn "Java 26 is not in your package sources: Paper starts without the AOT cache (about 13 s cold instead of 4 s; a frozen server still wakes up in under a second). Temurin 26: https://adoptium.net/installation/linux/"
 
 step "Downloading blink to $OPT"
 mkdir -p "$OPT"
@@ -175,21 +231,25 @@ echo "  $("$OPT/blink" --version)"
 
 step "Setting up the server folder"
 cleanup_blink1
-args=(--sleep "$SLEEP" --threads "$THREADS" --force)
-[ -n "$HEAP" ] && args+=(--heap "$HEAP")
 # the port Blink should listen on, also when server.properties was already rewritten
 [ -f server.properties.before-blink ] || { [ -f server.properties ] && cp -p server.properties server.properties.before-blink; }
 sed -i "s/^server-port=.*/server-port=$PORT/" server.properties.before-blink 2>/dev/null || true
-sudo -u "$OWNER" env JAVA_HOME="$(dirname "$(dirname "$JAVA")")" "$OPT/blink" init "${args[@]}"
-"$OPT/blink" config test -c blink.toml >/dev/null 2>&1 || die "blink.toml has an error"
+write_config sudo -u "$OWNER" env JAVA_HOME="$(dirname "$(dirname "$JAVA")")" "$OPT/blink"
+"$OPT/blink" config test -c blink.toml || die "blink.toml has an error (above)"
 
 step "Setting up swap and zswap"
 if ! swapon --show=NAME --noheadings | grep -q .; then
-  h=$(sed -n 's/.*HEAP=\([0-9]*\)G.*/\1/p' blink.toml | head -1); h=${h:-4}
+  h=$(sed -n 's/.*-\{0,1\}\(HEAP=\|Xmx\)\([0-9]*\)G.*/\2/p' blink.toml | head -1); h=${h:-4}
   [ -n "$SWAP" ] || SWAP=$(( h + 2 ))G
   avail=$(df --output=avail -BG / | tail -1 | tr -dc 0-9)
   [ "${SWAP%G}" -lt $(( avail / 2 )) ] || die "not enough disk space for a ${SWAP} swap file (use --swap)"
-  fallocate -l "$SWAP" /swapfile && chmod 600 /swapfile && mkswap -q /swapfile && swapon /swapfile
+  if [ "$(stat -f -c %T /)" = btrfs ]; then
+    btrfs filesystem mkswapfile --size "$SWAP" /swapfile >/dev/null   # no copy on write, as swap needs
+  else
+    fallocate -l "$SWAP" /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=$(( ${SWAP%G} * 1024 )) status=none
+    chmod 600 /swapfile && mkswap -q /swapfile
+  fi
+  swapon /swapfile
   grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
   echo "  swap file: $SWAP"
 else
@@ -222,14 +282,17 @@ Wants=network-online.target
 [Service]
 User=$OWNER
 WorkingDirectory=$DIR
-# Blink runs as $OWNER and moves a frozen server's memory out of RAM itself (memory.reclaim)
-ExecStartPre=+/bin/sh -c 'chown $OWNER /sys/fs/cgroup/system.slice/%n/memory.reclaim /sys/fs/cgroup/system.slice/%n/memory.zswap.max'
+# Blink runs as $OWNER and moves a frozen server's memory out of RAM itself (memory.reclaim).
+# Older kernels (before 5.19) or no zswap: those files don't exist, Blink then lets the kernel do it.
+ExecStartPre=+/bin/sh -c 'chown $OWNER /sys/fs/cgroup/system.slice/%n/memory.reclaim /sys/fs/cgroup/system.slice/%n/memory.zswap.max 2>/dev/null || true'
 # in tmux, so the console stays reachable: sudo -u $OWNER tmux -L $NAME attach -t $NAME
 ExecStart=/usr/bin/tmux -L $NAME new-session -d -s $NAME $OPT/blink start -c $DIR/blink.toml
 # SIGINT to blink: it thaws a frozen server, lets it save and stop, then quits
 ExecStop=/bin/sh -c 'pkill -INT -u $OWNER -f "^$OPT/blink start -c $DIR/blink.toml"; while /usr/bin/tmux -L $NAME has-session -t $NAME 2>/dev/null; do sleep 1; done'
 Type=forking
-RemainAfterExit=yes
+# if Blink stops by itself (a crash, or stop typed in the console), start it again
+Restart=always
+RestartSec=5
 TimeoutStopSec=180
 
 [Install]
@@ -253,10 +316,11 @@ fi
 cat <<D
 
   Players join on port $PORT as always. $SLEEP seconds after the last player leaves, the server
-  saves and freezes; the next join wakes it up in a fraction of a second.
+  saves and freezes; the next join has them back in the world within a second.
 
   Console:     sudo -u $OWNER tmux -L $NAME attach -t $NAME     (leave with Ctrl+B, then D)
   Stop/start:  sudo systemctl stop $NAME / sudo systemctl start $NAME
+               (stop typed in the console restarts it after 5 s; systemctl stop is for good)
   Settings:    $DIR/blink.toml
   Undo:        curl -fsSL $RAW/install.sh | sudo bash -s -- --uninstall --name $NAME --dir $DIR
 

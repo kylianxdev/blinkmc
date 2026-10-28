@@ -1,8 +1,13 @@
+# Example (optional): BlueMap's web map as its own small service, so it stays up while the
+# Minecraft server sleeps. BlueMap's plugin keeps rendering inside the server; this only serves
+# the map from the same files. Change User, WorkingDirectory and the jar name to yours, then:
+#   sudo cp bluemap-web.service /etc/systemd/system/ && sudo systemctl enable --now bluemap-web
 [Unit]
 Description=BlueMap web server (separate from Minecraft, stays up while the server sleeps)
 After=network-online.target
 
 [Service]
+# the user that owns your server files, and a folder with bluemap-cli.jar and BlueMap's config
 User=minecraft
 WorkingDirectory=/opt/bluemap-web
 # -w: only the web server, no rendering (the plugin in Paper still renders)

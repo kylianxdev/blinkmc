@@ -38,14 +38,14 @@ pub fn rewrite_file<P: AsRef<Path>>(file: P, changes: HashMap<&str, String>) {
         return;
     }
 
-    // File must exist
-    if !file.as_ref().is_file() {
-        warn!(target: "lazymc",
-            "Not writing {} file, not found at: {}",
-            FILE,
-            file.as_ref().to_str().unwrap_or("?"),
-        );
-        return;
+    // A new server has no server.properties yet: start one with our values, the server adds the
+    // rest on its first start (otherwise it would take Blink's public port)
+    if !file.as_ref().exists() {
+        info!(target: "lazymc", "Writing a new {} with the server's port", FILE);
+        if let Err(err) = fs::write(&file, "") {
+            error!(target: "lazymc", "Failed to create {} file: {}", FILE, err);
+            return;
+        }
     }
 
     // Read contents
@@ -133,8 +133,13 @@ fn rewrite_contents(contents: String, mut changes: HashMap<&str, String>) -> Opt
         .join(EOL);
 
     // Append any missed changes
-    for (key, value) in changes {
-        new_contents += &format!("{EOL}{key}={value}");
+    let mut missed: Vec<_> = changes.into_iter().collect();
+    missed.sort();
+    for (key, value) in missed {
+        if !new_contents.is_empty() {
+            new_contents += EOL;
+        }
+        new_contents += &format!("{key}={value}");
         changed = true;
     }
 
@@ -178,4 +183,27 @@ pub fn read_property<P: AsRef<Path>>(file: P, property: &str) -> Option<String> 
         .filter_map(|line| line.split_once('='))
         .find(|(p, _)| p.trim().to_lowercase() == property.to_lowercase())
         .map(|(_, v)| v.trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_server_gets_a_file_with_the_inner_port() {
+        let dir = std::env::temp_dir().join(format!("blink-props-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let _ = fs::remove_file(dir.join(FILE));
+        rewrite_dir(&dir, HashMap::from([("server-port", "35565".to_string()), ("server-ip", "127.0.0.1".to_string())]));
+        assert_eq!(read_property(dir.join(FILE), "server-port").as_deref(), Some("35565"));
+        assert_eq!(read_property(dir.join(FILE), "server-ip").as_deref(), Some("127.0.0.1"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn only_the_given_keys_change() {
+        let old = "#Minecraft server properties\r\nmotd=Hi\r\nserver-port=25565".to_string();
+        let new = rewrite_contents(old, HashMap::from([("server-port", "35565".to_string())])).unwrap();
+        assert_eq!(new, "#Minecraft server properties\r\nmotd=Hi\r\nserver-port=35565");
+    }
 }

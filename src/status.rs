@@ -243,18 +243,15 @@ async fn server_status(client_info: &ClientInfo, config: &Config, server: &Serve
         ),
     };
 
-    // Select description, use server MOTD if enabled, or use configured
+    // Asleep, waking up or going to sleep: our own MOTD, so players see it in the server list. (While
+    // awake, players reach the server itself and see its MOTD; from_server only borrows its icon.)
     let description = {
-        if config.motd.from_server && status.is_some() {
-            status.as_ref().unwrap().description.clone()
-        } else {
-            let motd = match server_state {
-                server::State::Stopped | server::State::Started => config.motd.sleeping.clone(),
-                server::State::Starting => config.motd.starting.clone(),
-                server::State::Stopping => config.motd.stopping.clone(),
-            };
-            Description::Text(motd)
-        }
+        let motd = match server_state {
+            server::State::Stopped | server::State::Started => config.motd.sleeping.clone(),
+            server::State::Starting => config.motd.starting.clone(),
+            server::State::Stopping => config.motd.stopping.clone(),
+        };
+        Description::Text(motd)
     };
 
     // Extract favicon from real server status, load from disk, or use default
